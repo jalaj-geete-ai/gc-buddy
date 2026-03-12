@@ -50,17 +50,26 @@ const PLACEMENT_QS = [
   { q:"Correct modal verb — Der Arzt ___ das Rezept ausstellen. (must)", opts:["kann","darf","muss","soll"], ans:"muss" },
 ];
 
-async function callClaude(messages, system) {
-  const res = await fetch("/api/claude", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 1000, system, messages }),
-  });
-  const data = await res.json();
-  return data.content?.map(b => b.text || "").join("") || "Sorry, could not respond.";
+async function callClaude(messages, system, maxTokens = 2000) {
+  try {
+    const res = await fetch("/api/claude", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: maxTokens, system, messages }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("API error:", res.status, err);
+      return "Sorry, there was an error connecting to the AI. Please try again.";
+    }
+    const data = await res.json();
+    return data.content?.map(b => b.text || "").join("") || "Sorry, could not respond.";
+  } catch (e) {
+    console.error("Fetch error:", e);
+    return "Sorry, could not connect. Please check your internet connection.";
+  }
 }
 
-function sysPrompt(user, topic) {
   return `You are "Luca", a warm German tutor for Global Careers by Testbook. Student: ${user.name}, a nurse learning German to work in Germany. Level: ${user.level}.${topic ? ` Current topic: ${topic}.` : ""}
 
 Formatting rules — follow these strictly:
@@ -127,15 +136,45 @@ function ProgressRing({ pct }) {
   );
 }
 
+const TIMER_SECONDS = 7;
+
 function PlacementTest({ user, onComplete }) {
   const [qi, setQi] = useState(0);
   const [sel, setSel] = useState(null);
   const [revealed, setRevealed] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [result, setResult] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
+  const [timedOut, setTimedOut] = useState(false);
+  const timerRef = useRef(null);
+
+  // Start/reset timer whenever question changes
+  useEffect(() => {
+    if (result) return;
+    setTimeLeft(TIMER_SECONDS);
+    setTimedOut(false);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(timerRef.current);
+          setTimedOut(true);
+          setRevealed(true); // auto-reveal with no answer
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [qi, result]);
+
+  // Stop timer when answered
+  useEffect(() => {
+    if (sel) clearInterval(timerRef.current);
+  }, [sel]);
 
   function pick(opt) {
     if (revealed) return;
+    clearInterval(timerRef.current);
     setSel(opt);
     setRevealed(true);
   }
@@ -161,6 +200,8 @@ function PlacementTest({ user, onComplete }) {
 
   const pct = Math.round((qi / PLACEMENT_QS.length) * 100);
   const q = PLACEMENT_QS[qi];
+  const timerPct = (timeLeft / TIMER_SECONDS) * 100;
+  const timerColor = timeLeft <= 2 ? "#c45c3a" : timeLeft <= 4 ? "#c9a84c" : "#6b8f71";
 
   if (result) {
     const { level, score } = result;
@@ -209,25 +250,60 @@ function PlacementTest({ user, onComplete }) {
   return (
     <div style={{flex:1,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:32,overflowY:"auto"}}>
       <div style={{...S.card, maxWidth:540}}>
-        <div style={{fontSize:10,color:"#8fa3b1",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>
-          Placement Test · {qi+1} of {PLACEMENT_QS.length}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+          <div style={{fontSize:10,color:"#8fa3b1",letterSpacing:"0.08em",textTransform:"uppercase"}}>
+            Placement Test · {qi+1} of {PLACEMENT_QS.length}
+          </div>
+          {/* Timer circle */}
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{position:"relative",width:40,height:40}}>
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="#ede8db" strokeWidth="4"/>
+                <circle cx="20" cy="20" r="16" fill="none" stroke={timerColor} strokeWidth="4"
+                  strokeDasharray={`${2*Math.PI*16*(timerPct/100)} ${2*Math.PI*16}`}
+                  strokeLinecap="round" transform="rotate(-90 20 20)"
+                  style={{transition:"stroke-dasharray 0.9s linear, stroke 0.3s"}}/>
+              </svg>
+              <div style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:13,color:timerColor}}>
+                {timeLeft}
+              </div>
+            </div>
+            {timedOut && !sel && (
+              <span style={{fontSize:11,color:"#c45c3a",fontWeight:600}}>Time's up!</span>
+            )}
+          </div>
         </div>
+
         <div style={{fontWeight:700,fontSize:20,color:"#1a1a2e",marginBottom:4}}>Let's find your level</div>
-        <div style={{fontSize:12,color:"#8fa3b1",marginBottom:18}}>Answer honestly — this helps Luca personalise your lessons.</div>
-        <div style={{height:4,background:"#ede8db",borderRadius:4,marginBottom:22,overflow:"hidden"}}>
+        <div style={{fontSize:12,color:"#8fa3b1",marginBottom:14}}>Answer honestly — 7 seconds per question</div>
+
+        {/* Progress bar */}
+        <div style={{height:4,background:"#ede8db",borderRadius:4,marginBottom:6,overflow:"hidden"}}>
           <div style={{height:"100%",width:`${pct}%`,background:"linear-gradient(90deg,#c9a84c,#6b8f71)",borderRadius:4,transition:"width 0.4s"}}/>
         </div>
+        {/* Timer bar */}
+        <div style={{height:3,background:"#ede8db",borderRadius:4,marginBottom:18,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${timerPct}%`,background:timerColor,borderRadius:4,transition:"width 0.9s linear"}}/>
+        </div>
+
         <div style={{fontSize:15,fontWeight:500,color:"#1a1a2e",marginBottom:14,lineHeight:1.5}}>{q.q}</div>
         {q.opts.map(opt => {
           const state = revealed ? (opt===q.ans?"correct":opt===sel?"wrong":null) : null;
           return (
-            <button key={opt} style={S.pOption(state)} onClick={() => pick(opt)}>{opt}</button>
+            <button key={opt} style={S.pOption(state)} disabled={revealed} onClick={() => pick(opt)}>{opt}</button>
           );
         })}
         {revealed && (
-          <button style={S.btnGold} onClick={next}>
-            {qi < PLACEMENT_QS.length-1 ? "Next →" : "See my level →"}
-          </button>
+          <>
+            {timedOut && !sel && (
+              <div style={{padding:"8px 12px",borderRadius:8,background:"#fde8e3",color:"#7a2a1a",fontSize:12,marginBottom:8}}>
+                ⏰ Time's up! The correct answer was: <strong>{q.ans}</strong>
+              </div>
+            )}
+            <button style={S.btnGold} onClick={next}>
+              {qi < PLACEMENT_QS.length-1 ? "Next →" : "See my level →"}
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -244,64 +320,77 @@ const LEVEL_INFO = {
 };
 
 function ExercisePanel({ user, history, onBack, onDone, exerciseDoneAt }) {
-  const [step, setStep] = useState("level");       // level | topic | loading | questions | score
+  const [step, setStep] = useState("level");
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [exercises, setExercises] = useState(null);
+  const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState({});
   const [revealed, setRevealed] = useState({});
-  const [fills, setFills] = useState({});
   const [score, setScore] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(null);
+  const [speaking, setSpeaking] = useState(false);
 
-  const cooldownEnd = exerciseDoneAt ? exerciseDoneAt + 86400000 : null;
-  const inCooldown = cooldownEnd && Date.now() < cooldownEnd;
-
-  useEffect(() => {
-    if (inCooldown) {
-      setTimeLeft(cooldownEnd - Date.now());
-      const t = setInterval(() => {
-        const left = cooldownEnd - Date.now();
-        setTimeLeft(left);
-        if (left <= 0) clearInterval(t);
-      }, 1000);
-      return () => clearInterval(t);
-    }
-  }, []);
-
-  function pickLevel(lvl) {
-    setSelectedLevel(lvl);
-    setSelectedTopic(null);
-    setStep("topic");
+  function speakText(text) {
+    if (!text) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "de-DE"; u.rate = 0.82;
+    u.onstart = () => setSpeaking(true);
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(u);
   }
+
+  function pickLevel(lvl) { setSelectedLevel(lvl); setStep("topic"); }
 
   async function pickTopic(topic) {
     setSelectedTopic(topic);
     setStep("loading");
-    setExercises(null); setAnswers({}); setRevealed({}); setFills({}); setScore(null);
-    const prompt = `Generate 5 German exercises specifically for the topic "${topic.title}" at level ${selectedLevel} for a nurse learning German to work in Germany. Focus only on "${topic.title}" (${topic.desc}). Return ONLY a valid JSON array, no markdown:\n[{"type":"mcq","question":"...","options":["A","B","C","D"],"answer":"A","explanation":"..."},{"type":"fill","question":"Complete: ___","answer":"word","explanation":"..."}]`;
-    const raw = await callClaude([{role:"user",content:prompt}], "Return only valid JSON arrays. No markdown.");
-    try { setExercises(JSON.parse(raw.replace(/```json|```/g,"").trim())); }
-    catch { setExercises([{type:"mcq",question:"What does 'Guten Morgen' mean?",options:["Good night","Good morning","Good evening","Goodbye"],answer:"Good morning",explanation:"Guten Morgen = Good morning."}]); }
+    setExercises(null); setAnswers({}); setRevealed({}); setCurrent(0); setScore(null);
+
+    const prompt = `Generate exactly 20 German language exercises for nurses learning German to work in Germany.
+Level: ${selectedLevel} | Topic: "${topic.title}" (${topic.desc})
+
+IMPORTANT rules:
+- ALL questions must use nursing/medical/hospital context
+- Mix of question types: vocabulary, fill-in-blank, listening comprehension, patient dialogue, medical terms
+- For LISTENING type questions: set "type":"listen" and put the German sentence/word to be spoken in "audioText" field
+- For MCQ: set "type":"mcq"
+- Make questions progressively harder (questions 1-7 easy, 8-14 medium, 15-20 hard)
+- All 4 options must be plausible medical/nursing terms
+
+Return ONLY a valid JSON array of exactly 20 objects, no markdown:
+[
+  {"type":"mcq","question":"What does 'die Spritze' mean?","options":["The bandage","The syringe","The tablet","The drip"],"answer":"The syringe","explanation":"Die Spritze = syringe, used for injections."},
+  {"type":"listen","question":"Listen and choose what the nurse is saying to the patient:","audioText":"Bitte atmen Sie tief ein und aus.","options":["Please breathe deeply in and out.","Please open your mouth wide.","Please lie still on your back.","Please press the call button."],"answer":"Please breathe deeply in and out.","explanation":"Einatmen = breathe in, ausatmen = breathe out."}
+]`;
+
+    const raw = await callClaude([{role:"user",content:prompt}], "Return only valid JSON arrays of exactly 20 items. No markdown. No explanation.", 3000);
+    try {
+      const parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
+      setExercises(Array.isArray(parsed) ? parsed.slice(0,20) : parsed);
+    } catch {
+      setExercises([
+        {type:"mcq",question:"What does 'der Blutdruck' mean?",options:["Heart rate","Blood pressure","Body temperature","Oxygen level"],answer:"Blood pressure",explanation:"Blutdruck = blood pressure. Blut = blood, Druck = pressure."},
+        {type:"listen",question:"Listen and choose what the doctor is saying:",audioText:"Der Patient hat hohes Fieber.",options:["The patient has high fever.","The patient has low blood pressure.","The patient needs surgery.","The patient is discharged."],answer:"The patient has high fever.",explanation:"Hohes Fieber = high fever. A common phrase in hospital settings."}
+      ]);
+    }
     setStep("questions");
+  }
+
+  function answer(idx, opt) {
+    if (revealed[idx]) return;
+    setAnswers(a => ({...a,[idx]:opt}));
+    setRevealed(r => ({...r,[idx]:true}));
   }
 
   function finish() {
     let c = 0;
-    exercises.forEach((ex,i) => {
-      const a = ex.type==="mcq" ? answers[i] : fills[i]||"";
-      if (a?.toLowerCase().trim() === ex.answer?.toLowerCase().trim()) c++;
-    });
+    exercises.forEach((ex,i) => { if (answers[i] === ex.answer) c++; });
     const s = Math.round((c/exercises.length)*100);
-    setScore(s);
-    setStep("score");
+    setScore({ pct: s, correct: c, total: exercises.length });
     onDone(s);
-  }
-
-  function fmt(ms) {
-    if (!ms || ms < 0) return "00:00:00";
-    const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000), s=Math.floor((ms%60000)/1000);
-    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    setStep("score");
   }
 
   const wrap = (children) => (
@@ -310,98 +399,64 @@ function ExercisePanel({ user, history, onBack, onDone, exerciseDoneAt }) {
     </div>
   );
 
-  // ── Cooldown ──
-  if (inCooldown) return wrap(
-    <div style={{background:"#fff",borderRadius:16,padding:32,textAlign:"center",border:"1px solid #e8d5a3"}}>
-      <div style={{fontSize:42,marginBottom:12}}>⏳</div>
-      <div style={{fontWeight:700,fontSize:18,color:"#1a1a2e"}}>Next exercise set unlocks in</div>
-      <div style={{fontSize:12,color:"#8fa3b1",marginTop:4}}>Spaced repetition helps you remember longer.</div>
-      <div style={{fontWeight:700,fontSize:28,color:"#c9a84c",marginTop:12}}>{fmt(timeLeft)}</div>
+  // ── Step 1: Level ──
+  if (step === "level") return wrap(<>
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+      <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#8fa3b1"}}>←</button>
+      <div style={{fontWeight:700,fontSize:21,color:"#1a1a2e"}}>Daily Exercise</div>
     </div>
-  );
-
-  // ── Step 1: Pick Level ──
-  if (step === "level") return wrap(
-    <>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-        <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#8fa3b1"}}>←</button>
-        <div style={{fontWeight:700,fontSize:21,color:"#1a1a2e"}}>Daily Exercise</div>
-      </div>
-      <div style={{fontSize:13,color:"#8fa3b1",marginBottom:6}}>Step 1 of 2 — Choose a level</div>
-      <div style={{display:"flex",gap:6,marginBottom:20}}>
-        {["level","topic","questions"].map((s,i)=>(
-          <div key={s} style={{height:3,flex:1,borderRadius:3,background:i===0?"#c9a84c":"#ede8db"}}/>
-        ))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        {LEVELS.map(lvl => {
-          const info = LEVEL_INFO[lvl];
-          const isCurrent = lvl === user.level;
-          const topics = CURRICULUM[lvl];
-          return (
-            <button key={lvl} onClick={() => pickLevel(lvl)}
-              style={{background:"#fff",borderRadius:14,padding:18,border:`2px solid ${isCurrent?"#c9a84c":"#e8d5a3"}`,cursor:"pointer",textAlign:"left",boxShadow:isCurrent?"0 4px 16px rgba(201,168,76,0.15)":"0 2px 8px rgba(26,26,46,0.06)"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                <div style={{fontWeight:700,fontSize:26,color:info.color}}>{lvl}</div>
-                {isCurrent && <span style={{fontSize:10,background:info.bg,color:info.color,padding:"3px 8px",borderRadius:6,fontWeight:600}}>Your Level</span>}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:"#1a1a2e",marginBottom:6}}>{info.label}</div>
-              <div style={{fontSize:11,color:"#8fa3b1"}}>
-                {topics.map(t=>t.title).join(" · ")}
-              </div>
-              <div style={{marginTop:12,padding:"7px 0",borderTop:"1px solid #ede8db",fontSize:12,color:info.color,fontWeight:600}}>
-                Select Level →
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </>
-  );
-
-  // ── Step 2: Pick Topic ──
-  if (step === "topic") return wrap(
-    <>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-        <button onClick={() => setStep("level")} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#8fa3b1"}}>←</button>
-        <div style={{fontWeight:700,fontSize:21,color:"#1a1a2e"}}>Choose a Topic</div>
-        <span style={{fontSize:11,background:LEVEL_INFO[selectedLevel].bg,color:LEVEL_INFO[selectedLevel].color,padding:"3px 9px",borderRadius:7,fontWeight:600,marginLeft:4}}>
-          {selectedLevel}
-        </span>
-      </div>
-      <div style={{fontSize:13,color:"#8fa3b1",marginBottom:6}}>Step 2 of 2 — Choose a topic to practise</div>
-      <div style={{display:"flex",gap:6,marginBottom:20}}>
-        {["level","topic","questions"].map((s,i)=>(
-          <div key={s} style={{height:3,flex:1,borderRadius:3,background:i<=1?"#c9a84c":"#ede8db"}}/>
-        ))}
-      </div>
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {CURRICULUM[selectedLevel].map((topic, i) => (
-          <button key={topic.id} onClick={() => pickTopic(topic)}
-            style={{background:"#fff",borderRadius:13,padding:"15px 16px",border:"1.5px solid #ede8db",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left",transition:"border-color 0.2s"}}>
-            <div style={{width:40,height:40,borderRadius:10,background:LEVEL_INFO[selectedLevel].bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>
-              {topic.icon}
+    <div style={{fontSize:13,color:"#8fa3b1",marginBottom:20}}>Choose a level — you can practise any level, not just your current one</div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      {LEVELS.map(lvl => {
+        const info = LEVEL_INFO[lvl];
+        const isCurrent = lvl === user.level;
+        return (
+          <button key={lvl} onClick={() => pickLevel(lvl)}
+            style={{background:"#fff",borderRadius:14,padding:18,border:`2px solid ${isCurrent?"#c9a84c":"#e8d5a3"}`,cursor:"pointer",textAlign:"left",boxShadow:isCurrent?"0 4px 16px rgba(201,168,76,0.15)":"0 2px 8px rgba(26,26,46,0.06)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <div style={{fontWeight:700,fontSize:26,color:info.color}}>{lvl}</div>
+              {isCurrent && <span style={{fontSize:10,background:info.bg,color:info.color,padding:"3px 8px",borderRadius:6,fontWeight:600}}>Your Level</span>}
             </div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:14,fontWeight:600,color:"#1a1a2e",marginBottom:2}}>{topic.title}</div>
-              <div style={{fontSize:11,color:"#8fa3b1"}}>{topic.desc}</div>
-            </div>
-            <div style={{fontSize:18,color:LEVEL_INFO[selectedLevel].color,flexShrink:0}}>→</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#1a1a2e",marginBottom:6}}>{info.label}</div>
+            <div style={{fontSize:11,color:"#8fa3b1"}}>{CURRICULUM[lvl].map(t=>t.title).join(" · ")}</div>
+            <div style={{marginTop:12,padding:"7px 0",borderTop:"1px solid #ede8db",fontSize:12,color:info.color,fontWeight:600}}>Select →</div>
           </button>
-        ))}
-      </div>
-    </>
-  );
+        );
+      })}
+    </div>
+  </>);
+
+  // ── Step 2: Topic ──
+  if (step === "topic") return wrap(<>
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+      <button onClick={() => setStep("level")} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#8fa3b1"}}>←</button>
+      <div style={{fontWeight:700,fontSize:21,color:"#1a1a2e"}}>Choose a Topic</div>
+      <span style={{fontSize:11,background:LEVEL_INFO[selectedLevel].bg,color:LEVEL_INFO[selectedLevel].color,padding:"3px 9px",borderRadius:7,fontWeight:600}}>{selectedLevel}</span>
+    </div>
+    <div style={{fontSize:13,color:"#8fa3b1",marginBottom:20}}>20 nursing-focused questions per topic · Mix of MCQ + Listening</div>
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {CURRICULUM[selectedLevel].map(topic => (
+        <button key={topic.id} onClick={() => pickTopic(topic)}
+          style={{background:"#fff",borderRadius:13,padding:"15px 16px",border:"1.5px solid #ede8db",display:"flex",alignItems:"center",gap:14,cursor:"pointer",textAlign:"left"}}>
+          <div style={{width:42,height:42,borderRadius:10,background:LEVEL_INFO[selectedLevel].bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{topic.icon}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:600,color:"#1a1a2e",marginBottom:2}}>{topic.title}</div>
+            <div style={{fontSize:11,color:"#8fa3b1"}}>{topic.desc}</div>
+          </div>
+          <div style={{fontSize:18,color:LEVEL_INFO[selectedLevel].color}}>→</div>
+        </button>
+      ))}
+    </div>
+  </>);
 
   // ── Loading ──
   if (step === "loading") return (
     <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",minHeight:0}}>
-      <div style={{textAlign:"center"}}>
+      <div style={{textAlign:"center",padding:32}}>
         <div style={{fontSize:36,marginBottom:12}}>✨</div>
-        <div style={{fontWeight:700,fontSize:17,color:"#1a1a2e"}}>Preparing exercises…</div>
-        <div style={{fontSize:12,color:"#8fa3b1",marginTop:4}}>
-          {selectedLevel} · {selectedTopic?.title}
-        </div>
+        <div style={{fontWeight:700,fontSize:17,color:"#1a1a2e"}}>Building your exercise set…</div>
+        <div style={{fontSize:12,color:"#8fa3b1",marginTop:6}}>{selectedLevel} · {selectedTopic?.title}</div>
+        <div style={{fontSize:11,color:"#8fa3b1",marginTop:4}}>Generating 20 nursing-focused questions</div>
       </div>
     </div>
   );
@@ -409,19 +464,15 @@ function ExercisePanel({ user, history, onBack, onDone, exerciseDoneAt }) {
   // ── Score ──
   if (step === "score") return wrap(
     <div style={{background:"linear-gradient(135deg,#1a1a2e,#2d2d4e)",borderRadius:16,padding:30,textAlign:"center",color:"white"}}>
-      <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginBottom:4}}>
-        {selectedLevel} · {selectedTopic?.title}
-      </div>
-      <div style={{fontWeight:700,fontSize:52,color:"#c9a84c",lineHeight:1,marginTop:4}}>{score}%</div>
-      <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:5}}>Score</div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginBottom:4}}>{selectedLevel} · {selectedTopic?.title}</div>
+      <div style={{fontWeight:700,fontSize:52,color:"#c9a84c",lineHeight:1,marginTop:4}}>{score.pct}%</div>
+      <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",marginTop:4}}>{score.correct} / {score.total} correct</div>
       <div style={{fontSize:13,color:"rgba(255,255,255,0.75)",marginTop:14,lineHeight:1.6}}>
-        {score>=80?"🎉 Ausgezeichnet! You've mastered this topic!":score>=50?"👏 Gut gemacht! A bit more practice and you'll nail it.":"💪 Nicht schlecht! Revisit this topic with Luca for extra help."}
+        {score.pct>=80?"🎉 Ausgezeichnet! You've mastered this topic!":score.pct>=50?"👏 Gut gemacht! A bit more practice and you'll nail it.":"💪 Keep going! Revisit with Luca for extra help."}
       </div>
       <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:22}}>
         <button style={{padding:"9px 18px",borderRadius:9,background:"#c9a84c",color:"#1a1a2e",fontWeight:700,fontSize:13,border:"none",cursor:"pointer"}}
-          onClick={() => { setStep("level"); setSelectedLevel(null); setSelectedTopic(null); }}>
-          Try Another Topic
-        </button>
+          onClick={() => { setStep("level"); setSelectedLevel(null); setSelectedTopic(null); }}>Try Another Topic</button>
         <button style={{padding:"9px 18px",borderRadius:9,background:"rgba(255,255,255,0.1)",color:"white",fontWeight:700,fontSize:13,border:"1px solid rgba(255,255,255,0.2)",cursor:"pointer"}}
           onClick={onBack}>Chat with Luca</button>
       </div>
@@ -430,56 +481,87 @@ function ExercisePanel({ user, history, onBack, onDone, exerciseDoneAt }) {
 
   // ── Questions ──
   if (step !== "questions" || !exercises) return null;
-  const allDone = exercises.every((_,i) => revealed[i]);
+  const ex = exercises[current];
+  const isAnswered = revealed[current];
+  const isCorrect = answers[current] === ex?.answer;
+  const progress = Math.round((Object.keys(revealed).length / exercises.length) * 100);
+  const allDone = Object.keys(revealed).length === exercises.length;
 
-  return wrap(
-    <>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-        <button onClick={() => setStep("topic")} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#8fa3b1"}}>←</button>
-        <div style={{fontWeight:700,fontSize:20,color:"#1a1a2e"}}>{selectedTopic?.icon} {selectedTopic?.title}</div>
+  return wrap(<>
+    {/* Header */}
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+      <button onClick={() => setStep("topic")} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#8fa3b1"}}>←</button>
+      <div style={{fontWeight:700,fontSize:18,color:"#1a1a2e"}}>{selectedTopic?.icon} {selectedTopic?.title}</div>
+      <span style={{fontSize:11,background:LEVEL_INFO[selectedLevel].bg,color:LEVEL_INFO[selectedLevel].color,padding:"3px 8px",borderRadius:7,fontWeight:600,marginLeft:"auto"}}>{selectedLevel}</span>
+    </div>
+
+    {/* Progress */}
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+      <div style={{height:5,flex:1,background:"#ede8db",borderRadius:4,overflow:"hidden"}}>
+        <div style={{height:"100%",width:`${progress}%`,background:"linear-gradient(90deg,#c9a84c,#6b8f71)",borderRadius:4,transition:"width 0.4s"}}/>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:18}}>
-        <span style={{fontSize:11,background:LEVEL_INFO[selectedLevel].bg,color:LEVEL_INFO[selectedLevel].color,padding:"3px 9px",borderRadius:7,fontWeight:600}}>
-          {selectedLevel} · {LEVEL_INFO[selectedLevel].label}
-        </span>
-        <span style={{fontSize:11,color:"#8fa3b1"}}>5 questions · ~5 mins</span>
-      </div>
-      {exercises.map((ex,i) => {
-        const ua = ex.type==="mcq" ? answers[i] : fills[i]||"";
-        const ok = ua?.toLowerCase().trim() === ex.answer?.toLowerCase().trim();
-        return (
-          <div key={i} style={{background:"#fff",borderRadius:14,padding:20,border:"1px solid #e8d5a3",marginBottom:12,boxShadow:"0 2px 10px rgba(26,26,46,0.08)"}}>
-            <div style={{fontSize:14,fontWeight:500,color:"#1a1a2e",marginBottom:12,lineHeight:1.5}}>{i+1}. {ex.question}</div>
-            {ex.type==="mcq" ? ex.options.map(opt => {
-              const st = revealed[i] ? (opt===ex.answer?"correct":opt===answers[i]?"wrong":null) : null;
-              return (
-                <button key={opt} style={S.pOption(st)} disabled={!!revealed[i]}
-                  onClick={() => { setAnswers(a=>({...a,[i]:opt})); setRevealed(r=>({...r,[i]:true})); }}>
-                  {opt}
-                </button>
-              );
-            }) : (
-              <div>
-                <textarea style={{width:"100%",minHeight:64,padding:"9px 12px",borderRadius:9,border:"1.5px solid #ede8db",background:"#f5f0e8",fontSize:13,color:"#1a1a2e",fontFamily:"inherit",resize:"vertical",outline:"none"}}
-                  placeholder="Type your answer…" value={fills[i]||""} disabled={!!revealed[i]}
-                  onChange={e => setFills(f=>({...f,[i]:e.target.value}))}/>
-                {!revealed[i] && (
-                  <button style={{marginTop:8,padding:"8px 18px",borderRadius:9,background:"#1a1a2e",color:"#c9a84c",fontWeight:700,fontSize:13,border:"none",cursor:"pointer"}}
-                    onClick={() => setRevealed(r=>({...r,[i]:true}))}>Check</button>
-                )}
-              </div>
-            )}
-            {revealed[i] && (
-              <div style={{marginTop:10,padding:"10px 13px",borderRadius:9,background:ok?"#e8f5ea":"#fde8e3",color:ok?"#2d5a32":"#7a2a1a",fontSize:12,lineHeight:1.6}}>
-                {ok?"✓ Correct! ":"✗ Answer: "+ex.answer+". "}{ex.explanation}
-              </div>
-            )}
+      <span style={{fontSize:12,color:"#8fa3b1",whiteSpace:"nowrap"}}>{current+1} / {exercises.length}</span>
+    </div>
+
+    {/* Question card */}
+    {ex && (
+      <div style={{background:"#fff",borderRadius:14,padding:20,border:"1px solid #e8d5a3",marginBottom:12,boxShadow:"0 2px 10px rgba(26,26,46,0.08)"}}>
+        {/* Listening badge */}
+        {ex.type === "listen" && (
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+            <span style={{fontSize:10,background:"#e3f2fd",color:"#1565c0",padding:"3px 10px",borderRadius:6,fontWeight:600,letterSpacing:"0.05em"}}>🎧 LISTENING</span>
+            <button onClick={() => speakText(ex.audioText)}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"6px 14px",borderRadius:8,background:speaking?"#1a1a2e":"#c9a84c",color:speaking?"#c9a84c":"#1a1a2e",fontWeight:700,fontSize:12,border:"none",cursor:"pointer"}}>
+              {speaking ? "🔊 Playing…" : "▶ Play Audio"}
+            </button>
           </div>
-        );
-      })}
-      {allDone && <button style={{...S.btnPrimary,marginTop:4}} onClick={finish}>See my score →</button>}
-    </>
-  );
+        )}
+        <div style={{fontSize:14,fontWeight:500,color:"#1a1a2e",marginBottom:14,lineHeight:1.6}}>
+          Q{current+1}. {ex.question}
+        </div>
+        {ex.options.map(opt => {
+          const state = isAnswered ? (opt===ex.answer?"correct":opt===answers[current]?"wrong":null) : null;
+          return (
+            <button key={opt} style={S.pOption(state)} disabled={isAnswered}
+              onClick={() => answer(current, opt)}>{opt}</button>
+          );
+        })}
+        {isAnswered && (
+          <div style={{marginTop:10,padding:"10px 14px",borderRadius:9,background:isCorrect?"#e8f5ea":"#fde8e3",color:isCorrect?"#2d5a32":"#7a2a1a",fontSize:12,lineHeight:1.6}}>
+            {isCorrect ? "✓ Correct! " : `✗ Answer: ${ex.answer}. `}{ex.explanation}
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Navigation */}
+    <div style={{display:"flex",gap:10,marginTop:8}}>
+      {current > 0 && (
+        <button onClick={() => setCurrent(c => c-1)}
+          style={{padding:"10px 18px",borderRadius:10,background:"#fff",border:"1.5px solid #e8d5a3",color:"#8fa3b1",fontWeight:600,fontSize:13,cursor:"pointer"}}>← Prev</button>
+      )}
+      {current < exercises.length-1 && (
+        <button onClick={() => setCurrent(c => c+1)}
+          style={{flex:1,padding:"10px 18px",borderRadius:10,background:"#1a1a2e",color:"#c9a84c",fontWeight:700,fontSize:13,border:"none",cursor:"pointer"}}>Next →</button>
+      )}
+      {allDone && current === exercises.length-1 && (
+        <button onClick={finish}
+          style={{flex:1,padding:"10px 18px",borderRadius:10,background:"linear-gradient(90deg,#c9a84c,#6b8f71)",color:"#1a1a2e",fontWeight:700,fontSize:13,border:"none",cursor:"pointer"}}>See my score →</button>
+      )}
+    </div>
+
+    {/* Question dots */}
+    <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:16}}>
+      {exercises.map((_,i) => (
+        <button key={i} onClick={() => setCurrent(i)}
+          style={{width:26,height:26,borderRadius:6,fontSize:11,fontWeight:600,border:"none",cursor:"pointer",
+            background: i===current?"#1a1a2e": revealed[i]?(answers[i]===exercises[i].answer?"#6b8f71":"#c45c3a"):"#ede8db",
+            color: i===current?"#c9a84c": revealed[i]?"#fff":"#8a8a9a"}}>
+          {i+1}
+        </button>
+      ))}
+    </div>
+  </>);
 }
 
 function Dashboard({ user, progress, messages, completedTopics, onStartLesson, onGoToChat, onGoToExercise, exerciseReady }) {
@@ -589,87 +671,73 @@ function CurriculumMap({ user, completedTopics, onStartLesson }) {
   );
 }
 
+
 function TranslationPanel() {
   const [word, setWord] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [history, setHistory] = useState([]);
+  const [error, setError] = useState(null);
 
   async function lookup() {
     const w = word.trim();
     if (!w) return;
     setLoading(true);
     setResult(null);
-    const prompt = `The user entered the German word or phrase: "${w}"
-Return ONLY a valid JSON object, no markdown:
-{
-  "word": "${w}",
-  "meaning_english": "meaning in English",
-  "meaning_hindi": "meaning in Hindi (Devanagari script)",
-  "pronunciation_guide": "phonetic guide e.g. GOO-ten MOR-gen",
-  "example_sentence": "a short example sentence in German using this word",
-  "example_translation": "English translation of the example sentence",
-  "part_of_speech": "noun / verb / adjective / phrase etc",
-  "gender": "der/die/das or N/A if not a noun"
-}
-If the input is not a valid German word or phrase, set meaning_english to "Not a valid German word" and leave other fields as empty strings.`;
-    const raw = await callClaude([{role:"user",content:prompt}], "Return only valid JSON. No markdown. No explanation.");
+    setError(null);
+    const prompt = `You are a German language dictionary. The user typed: "${w}"
+
+Return ONLY a valid JSON object with no markdown, no extra text, just the JSON:
+{"word":"${w}","meaning_english":"meaning in English","meaning_hindi":"meaning in Hindi using Devanagari script","pronunciation_guide":"syllable-by-syllable phonetic guide e.g. KRAN-ken-house","example_sentence":"short German example sentence using this word in a hospital or nursing context","example_translation":"English translation of the example","part_of_speech":"noun or verb or adjective or phrase","gender":"der or die or das — only if it is a noun, otherwise write N/A"}
+
+If the input is not German, still attempt a translation from English/Hindi to German and fill all fields.`;
+
+    const raw = await callClaude(
+      [{role:"user", content: prompt}],
+      "You are a German dictionary. Always return only valid JSON. Never add markdown or explanation.",
+      800
+    );
     try {
-      const data = JSON.parse(raw.replace(/```json|```/g,"").trim());
+      const cleaned = raw.replace(/```json/g,"").replace(/```/g,"").trim();
+      const data = JSON.parse(cleaned);
       setResult(data);
-      if (data.meaning_english !== "Not a valid German word") {
-        setHistory(h => [data, ...h.filter(x => x.word.toLowerCase() !== data.word.toLowerCase())].slice(0, 10));
-      }
-    } catch {
-      setResult({ word: w, meaning_english:"Could not parse result. Please try again.", meaning_hindi:"", pronunciation_guide:"", example_sentence:"", example_translation:"", part_of_speech:"", gender:"" });
+      setHistory(h => [data, ...h.filter(x => x.word.toLowerCase() !== data.word.toLowerCase())].slice(0,10));
+    } catch(e) {
+      setError("Could not parse the result. Please try again.");
+      console.error("Parse error:", e, "Raw:", raw);
     }
     setLoading(false);
   }
 
-  function speak() {
-    if (!result || speaking) return;
-    const utter = new SpeechSynthesisUtterance(result.word);
-    utter.lang = "de-DE";
-    utter.rate = 0.85;
-    utter.onstart = () => setSpeaking(true);
-    utter.onend = () => setSpeaking(false);
-    utter.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utter);
+  function speak(text, lang="de-DE", rate=0.85) {
+    if (speaking) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang; u.rate = rate;
+    u.onstart = () => setSpeaking(true);
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(u);
   }
-
-  function speakSentence() {
-    if (!result?.example_sentence) return;
-    const utter = new SpeechSynthesisUtterance(result.example_sentence);
-    utter.lang = "de-DE";
-    utter.rate = 0.8;
-    window.speechSynthesis.speak(utter);
-  }
-
-  function onKey(e) { if (e.key === "Enter") lookup(); }
 
   return (
     <div style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:26,minHeight:0,background:"#f5f0e8"}}>
-      {/* Header */}
       <div style={{marginBottom:20}}>
         <div style={{fontWeight:700,fontSize:21,color:"#1a1a2e",marginBottom:3}}>🔤 Translations</div>
-        <div style={{fontSize:12,color:"#8fa3b1"}}>Enter any German word — get pronunciation, Hindi & English meaning instantly</div>
+        <div style={{fontSize:12,color:"#8fa3b1"}}>Type any German word — get pronunciation, Hindi & English meaning instantly</div>
       </div>
 
-      {/* Search box */}
+      {/* Search */}
       <div style={{background:"#fff",borderRadius:16,padding:20,border:"1px solid #e8d5a3",marginBottom:20,boxShadow:"0 2px 10px rgba(26,26,46,0.07)"}}>
         <div style={{fontSize:10,fontWeight:600,color:"#8fa3b1",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:8}}>German Word or Phrase</div>
         <div style={{display:"flex",gap:10}}>
-          <input
-            value={word}
-            onChange={e => setWord(e.target.value)}
-            onKeyDown={onKey}
-            placeholder="e.g. Krankenhaus, Guten Morgen, ich bin…"
-            style={{flex:1,padding:"11px 14px",borderRadius:11,border:"1.5px solid #ede8db",background:"#f5f0e8",fontSize:14,color:"#1a1a2e",outline:"none",fontFamily:"inherit"}}
-          />
+          <input value={word} onChange={e=>setWord(e.target.value)} onKeyDown={e=>e.key==="Enter"&&lookup()}
+            placeholder="e.g. Krankenhaus, Blutdruck, Guten Morgen…"
+            style={{flex:1,padding:"11px 14px",borderRadius:11,border:"1.5px solid #ede8db",background:"#f5f0e8",fontSize:14,color:"#1a1a2e",outline:"none",fontFamily:"inherit"}}/>
           <button onClick={lookup} disabled={!word.trim()||loading}
-            style={{padding:"11px 22px",borderRadius:11,background:word.trim()&&!loading?"#1a1a2e":"#ede8db",color:word.trim()&&!loading?"#c9a84c":"#8fa3b1",fontWeight:700,fontSize:14,border:"none",cursor:word.trim()&&!loading?"pointer":"not-allowed",transition:"all 0.2s",whiteSpace:"nowrap"}}>
-            {loading ? "Looking up…" : "Translate →"}
+            style={{padding:"11px 22px",borderRadius:11,background:word.trim()&&!loading?"#1a1a2e":"#ede8db",color:word.trim()&&!loading?"#c9a84c":"#8fa3b1",fontWeight:700,fontSize:14,border:"none",cursor:word.trim()&&!loading?"pointer":"not-allowed",whiteSpace:"nowrap"}}>
+            {loading?"Looking up…":"Translate →"}
           </button>
         </div>
       </div>
@@ -679,62 +747,65 @@ If the input is not a valid German word or phrase, set meaning_english to "Not a
         <div style={{textAlign:"center",padding:"32px 0"}}>
           <div style={{fontSize:32,marginBottom:10}}>🔍</div>
           <div style={{fontWeight:600,fontSize:15,color:"#1a1a2e"}}>Looking up "{word}"…</div>
-          <div style={{fontSize:12,color:"#8fa3b1",marginTop:4}}>Fetching pronunciation & meanings</div>
         </div>
       )}
 
-      {/* Result card */}
+      {/* Error */}
+      {error && (
+        <div style={{background:"#fde8e3",border:"1px solid #f5c0b0",borderRadius:12,padding:"14px 16px",marginBottom:16,color:"#7a2a1a",fontSize:13}}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Result */}
       {result && !loading && (
         <div style={{background:"#fff",borderRadius:16,border:"1px solid #e8d5a3",overflow:"hidden",marginBottom:20,boxShadow:"0 4px 18px rgba(26,26,46,0.09)"}}>
           {/* Word header */}
           <div style={{background:"linear-gradient(135deg,#1a1a2e,#2d2d4e)",padding:"20px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div>
-              <div style={{fontWeight:700,fontSize:28,color:"#c9a84c",letterSpacing:"0.01em"}}>{result.word}</div>
+              <div style={{fontWeight:700,fontSize:28,color:"#c9a84c"}}>{result.word}</div>
               <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
                 {result.part_of_speech && <span style={{fontSize:11,background:"rgba(201,168,76,0.2)",color:"#c9a84c",padding:"2px 9px",borderRadius:6,fontWeight:600}}>{result.part_of_speech}</span>}
-                {result.gender && result.gender !== "N/A" && result.gender !== "" && <span style={{fontSize:11,background:"rgba(143,163,177,0.2)",color:"#8fa3b1",padding:"2px 9px",borderRadius:6,fontWeight:600}}>{result.gender}</span>}
+                {result.gender && result.gender!=="N/A" && result.gender!=="" && <span style={{fontSize:11,background:"rgba(143,163,177,0.2)",color:"#8fa3b1",padding:"2px 9px",borderRadius:6,fontWeight:600}}>{result.gender}</span>}
               </div>
             </div>
-            {/* Speak button */}
-            <button onClick={speak} disabled={speaking}
-              style={{width:52,height:52,borderRadius:"50%",background:speaking?"rgba(201,168,76,0.3)":"rgba(201,168,76,0.15)",border:"2px solid rgba(201,168,76,0.4)",cursor:speaking?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,transition:"all 0.2s",flexShrink:0}}
+            <button onClick={() => speak(result.word)} disabled={speaking}
+              style={{width:52,height:52,borderRadius:"50%",background:speaking?"rgba(201,168,76,0.3)":"rgba(201,168,76,0.15)",border:"2px solid rgba(201,168,76,0.4)",cursor:speaking?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}
               title="Hear pronunciation">
-              {speaking ? "🔊" : "🔈"}
+              {speaking?"🔊":"🔈"}
             </button>
           </div>
 
           <div style={{padding:"18px 22px",display:"flex",flexDirection:"column",gap:14}}>
-            {/* Pronunciation guide */}
+            {/* Pronunciation */}
             {result.pronunciation_guide && (
               <div style={{background:"#f5f0e8",borderRadius:11,padding:"12px 15px",border:"1px solid #e8d5a3"}}>
                 <div style={{fontSize:10,fontWeight:600,color:"#8fa3b1",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5}}>🗣 Pronunciation Guide</div>
-                <div style={{fontWeight:700,fontSize:17,color:"#1a1a2e",letterSpacing:"0.04em",fontFamily:"monospace"}}>{result.pronunciation_guide}</div>
-                <div style={{fontSize:11,color:"#8fa3b1",marginTop:4}}>Say it slowly, syllable by syllable · Press 🔈 above to hear it</div>
+                <div style={{fontWeight:700,fontSize:18,color:"#1a1a2e",letterSpacing:"0.04em",fontFamily:"monospace"}}>{result.pronunciation_guide}</div>
+                <div style={{fontSize:11,color:"#8fa3b1",marginTop:4}}>Press 🔈 above to hear it spoken in German</div>
               </div>
             )}
 
-            {/* Meanings row */}
+            {/* Meanings */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              {/* English */}
               <div style={{background:"#f5f0e8",borderRadius:11,padding:"13px 15px",border:"1px solid #e8d5a3"}}>
                 <div style={{fontSize:10,fontWeight:600,color:"#8fa3b1",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5}}>🇬🇧 English Meaning</div>
-                <div style={{fontWeight:600,fontSize:15,color:"#1a1a2e",lineHeight:1.4}}>{result.meaning_english}</div>
+                <div style={{fontWeight:600,fontSize:15,color:"#1a1a2e",lineHeight:1.4}}>{result.meaning_english || "—"}</div>
               </div>
-              {/* Hindi */}
               <div style={{background:"#f5f0e8",borderRadius:11,padding:"13px 15px",border:"1px solid #e8d5a3"}}>
                 <div style={{fontSize:10,fontWeight:600,color:"#8fa3b1",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5}}>🇮🇳 Hindi Meaning</div>
                 <div style={{fontWeight:600,fontSize:15,color:"#1a1a2e",lineHeight:1.4}}>{result.meaning_hindi || "—"}</div>
               </div>
             </div>
 
-            {/* Example sentence */}
+            {/* Example */}
             {result.example_sentence && (
               <div style={{background:"rgba(107,143,113,0.08)",borderRadius:11,padding:"13px 15px",border:"1px solid rgba(107,143,113,0.2)"}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:10,fontWeight:600,color:"#6b8f71",letterSpacing:"0.07em",textTransform:"uppercase"}}>📝 Example Sentence</div>
-                  <button onClick={speakSentence}
+                  <div style={{fontSize:10,fontWeight:600,color:"#6b8f71",letterSpacing:"0.07em",textTransform:"uppercase"}}>📝 Example (Hospital Context)</div>
+                  <button onClick={() => speak(result.example_sentence)}
                     style={{fontSize:12,background:"none",border:"1px solid rgba(107,143,113,0.3)",borderRadius:6,padding:"2px 8px",cursor:"pointer",color:"#6b8f71",fontWeight:600}}>
-                    🔈 Hear it
+                    🔈 Hear
                   </button>
                 </div>
                 <div style={{fontWeight:600,fontSize:14,color:"#1a1a2e",marginBottom:4,fontStyle:"italic"}}>{result.example_sentence}</div>
@@ -763,6 +834,149 @@ If the input is not a valid German word or phrase, set meaning_english to "Not a
   );
 }
 
+
+const MEDIA = {
+  A1: {
+    movies: [
+      { title:"Nicos Weg (Episodes 1–25)", type:"Series", platform:"DW Learn German (Free)", why:"Made for A1 learners — slow, clear German with subtitles", link:"https://learngerman.dw.com/en/nicos-weg/c-36519687" },
+      { title:"Peppa Wutz", type:"Kids Show", platform:"YouTube (Free)", why:"Simple vocabulary, slow speech — perfect for beginners", link:"https://www.youtube.com/@PeppaWutzDeutsch" },
+      { title:"Sesame Street (Sesamstraße)", type:"Kids Show", platform:"YouTube (Free)", why:"Fun, repetitive vocabulary — ideal to build basic words", link:"https://www.youtube.com/results?search_query=Sesamstra%C3%9Fe" },
+    ],
+    songs: [
+      { title:"Kopf, Schulter, Knie und Fuß", artist:"German Children's Song", why:"Teaches body parts — very useful for nurses! (Head, shoulders, knees and toes)", link:"https://www.youtube.com/results?search_query=Kopf+Schulter+Knie+und+Fu%C3%9F" },
+      { title:"Alle meine Entchen", artist:"Traditional", why:"Classic A1 German song — simple words and rhythm", link:"https://www.youtube.com/results?search_query=Alle+meine+Entchen" },
+      { title:"Ein Männlein steht im Walde", artist:"Traditional", why:"Slow, clear pronunciation — great listening practice", link:"https://www.youtube.com/results?search_query=Ein+M%C3%A4nnlein+steht+im+Walde" },
+    ],
+    shows: [
+      { title:"Nicos Weg", platform:"DW Learn German", why:"A story-based series following Nico — built for absolute beginners", link:"https://learngerman.dw.com" },
+      { title:"Learn German with Anja", platform:"YouTube", why:"Friendly teacher explains basics in English + German", link:"https://www.youtube.com/@LearnGermanwithAnja" },
+    ],
+  },
+  A2: {
+    movies: [
+      { title:"Nicos Weg (Episodes 26–65)", type:"Series", platform:"DW Learn German (Free)", why:"Continues into A2 — dialogues get more complex", link:"https://learngerman.dw.com/en/nicos-weg/c-36519687" },
+      { title:"Das Sams", type:"Movie", platform:"Amazon Prime", why:"Funny German children's movie — clear dialogue, great for A2", link:"https://www.amazon.com" },
+      { title:"Shaun das Schaf", type:"Kids Show", platform:"YouTube (Free)", why:"Almost no dialogue — you learn from context. Very fun!", link:"https://www.youtube.com/results?search_query=Shaun+das+Schaf+Deutsch" },
+    ],
+    songs: [
+      { title:"Atemlos durch die Nacht", artist:"Helene Fischer", why:"Clear pronunciation, modern German — great for listening practice", link:"https://www.youtube.com/results?search_query=Helene+Fischer+Atemlos" },
+      { title:"99 Luftballons", artist:"Nena", why:"Classic German pop — many learners know it, good vocabulary", link:"https://www.youtube.com/results?search_query=99+Luftballons" },
+      { title:"Warum", artist:"Silbermond", why:"Emotional, slow German — great for understanding sentence structure", link:"https://www.youtube.com/results?search_query=Silbermond+Warum" },
+    ],
+    shows: [
+      { title:"Extra auf Deutsch", platform:"YouTube (Free)", why:"Comedy series made for language learners — hilarious and educational", link:"https://www.youtube.com/results?search_query=Extra+auf+Deutsch" },
+      { title:"Janoschs Traumstunde", platform:"YouTube", why:"Animated show with simple, clear German — great A2 listening", link:"https://www.youtube.com/results?search_query=Janoschs+Traumstunde" },
+    ],
+  },
+  B1: {
+    movies: [
+      { title:"Good Bye Lenin!", type:"Movie", platform:"Netflix / Amazon", why:"East German story — rich vocabulary, real spoken German dialogs", link:"https://www.netflix.com" },
+      { title:"Das Leben der Anderen", type:"Movie", platform:"Amazon Prime", why:"Award-winning — formal German, great for professional vocabulary", link:"https://www.amazon.com" },
+      { title:"Türkisch für Anfänger", type:"Series", platform:"ARD Mediathek (Free)", why:"Comedy about integration in Germany — natural spoken German", link:"https://www.ardmediathek.de" },
+    ],
+    songs: [
+      { title:"Wir sind wir", artist:"Paul van Dyk & Peter Heppner", why:"Thoughtful German — complex sentences at natural speed", link:"https://www.youtube.com/results?search_query=Wir+sind+wir+Paul+van+Dyk" },
+      { title:"An Tagen wie diesen", artist:"Toten Hosen", why:"Powerful German rock — listen and follow along with lyrics", link:"https://www.youtube.com/results?search_query=An+Tagen+wie+diesen+Toten+Hosen" },
+      { title:"Ich bin aus Wien", artist:"Rainhard Fendrich", why:"Austrian German — useful since many German nurses work near Austria", link:"https://www.youtube.com/results?search_query=Ich+bin+aus+Wien+Fendrich" },
+    ],
+    shows: [
+      { title:"Dark (Season 1)", platform:"Netflix", why:"Complex German drama — challenging but excellent for B1/B2 listening", link:"https://www.netflix.com" },
+      { title:"Tatort", platform:"ARD Mediathek (Free)", why:"Germany's most famous detective show — real spoken German", link:"https://www.ardmediathek.de/tatort" },
+    ],
+  },
+  B2: {
+    movies: [
+      { title:"Der Baader Meinhof Komplex", type:"Movie", platform:"Amazon Prime", why:"Fast, authentic German speech — challenges your listening at B2", link:"https://www.amazon.com" },
+      { title:"Lola rennt (Run Lola Run)", type:"Movie", platform:"Netflix", why:"Fast-paced, modern German — great for natural conversational speed", link:"https://www.netflix.com" },
+      { title:"Das Boot", type:"Series", platform:"Sky / Amazon", why:"Intense German drama — advanced vocabulary and sentence structures", link:"https://www.amazon.com" },
+    ],
+    songs: [
+      { title:"Auszug aus der Hölle", artist:"Rammstein", why:"Powerful German — complex metaphors and advanced vocabulary", link:"https://www.youtube.com/results?search_query=Rammstein" },
+      { title:"Mutter", artist:"Rammstein", why:"Poetic German lyrics — excellent for B2 vocabulary expansion", link:"https://www.youtube.com/results?search_query=Rammstein+Mutter" },
+      { title:"Irgendwie, irgendwo, irgendwann", artist:"Nena", why:"Deep German lyrics — complex grammar structures in natural flow", link:"https://www.youtube.com/results?search_query=Nena+Irgendwie+irgendwo" },
+    ],
+    shows: [
+      { title:"Dark (All Seasons)", platform:"Netflix", why:"Mind-bending German — you'll hear complex grammar and old-style German", link:"https://www.netflix.com" },
+      { title:"Babylon Berlin", platform:"Netflix / Sky", why:"1920s German — rich vocabulary, historical and medical terms", link:"https://www.netflix.com" },
+    ],
+  },
+};
+
+function MediaPanel({ user }) {
+  const [activeLevel, setActiveLevel] = useState(user?.level || "A1");
+  const [activeTab, setActiveTab] = useState("movies");
+
+  const media = MEDIA[activeLevel];
+  const items = media[activeTab];
+
+  const tabIcon = { movies:"🎬", songs:"🎵", shows:"📺" };
+  const tabLabel = { movies:"Movies", songs:"Songs", shows:"Web Shows" };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:26,minHeight:0,background:"#f5f0e8"}}>
+      {/* Header */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontWeight:700,fontSize:21,color:"#1a1a2e",marginBottom:3}}>🎬 Learn Through Media</div>
+        <div style={{fontSize:12,color:"#8fa3b1"}}>Watch, listen & enjoy German — handpicked for your level to make learning fun</div>
+      </div>
+
+      {/* Level selector */}
+      <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+        {LEVELS.map(lvl => (
+          <button key={lvl} onClick={() => setActiveLevel(lvl)}
+            style={{padding:"7px 18px",borderRadius:20,fontSize:13,fontWeight:600,border:`1.5px solid ${activeLevel===lvl?"#1a1a2e":"#e8d5a3"}`,cursor:"pointer",background:activeLevel===lvl?"#1a1a2e":"#fff",color:activeLevel===lvl?"#c9a84c":"#8fa3b1",display:"flex",alignItems:"center",gap:6}}>
+            {lvl}
+            {lvl === user?.level && <span style={{fontSize:9,background:"rgba(201,168,76,0.2)",color:"#c9a84c",padding:"1px 6px",borderRadius:4}}>You</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:8,marginBottom:20}}>
+        {["movies","songs","shows"].map(t => (
+          <button key={t} onClick={() => setActiveTab(t)}
+            style={{flex:1,padding:"10px 8px",borderRadius:12,fontSize:13,fontWeight:600,border:`1.5px solid ${activeTab===t?"#c9a84c":"#e8d5a3"}`,cursor:"pointer",background:activeTab===t?"#fff":"#f5f0e8",color:activeTab===t?"#1a1a2e":"#8fa3b1",boxShadow:activeTab===t?"0 2px 10px rgba(201,168,76,0.15)":"none"}}>
+            {tabIcon[t]} {tabLabel[t]}
+          </button>
+        ))}
+      </div>
+
+      {/* Cards */}
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {items.map((item, i) => (
+          <div key={i} style={{background:"#fff",borderRadius:14,padding:18,border:"1px solid #e8d5a3",boxShadow:"0 2px 8px rgba(26,26,46,0.06)"}}>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                  <div style={{fontWeight:700,fontSize:15,color:"#1a1a2e"}}>{item.title}</div>
+                  {item.type && <span style={{fontSize:10,background:"#f5f0e8",color:"#8fa3b1",padding:"2px 8px",borderRadius:6,fontWeight:600,flexShrink:0}}>{item.type}</span>}
+                  {item.artist && <span style={{fontSize:11,color:"#8fa3b1",flexShrink:0}}>by {item.artist}</span>}
+                </div>
+                <div style={{fontSize:12,color:"#6b8f71",fontWeight:500,marginBottom:6}}>📍 {item.platform}</div>
+                <div style={{fontSize:13,color:"#555",lineHeight:1.5}}>💡 {item.why}</div>
+              </div>
+            </div>
+            <a href={item.link} target="_blank" rel="noreferrer"
+              style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:12,padding:"7px 16px",borderRadius:9,background:"#1a1a2e",color:"#c9a84c",fontSize:12,fontWeight:700,textDecoration:"none"}}>
+              {activeTab==="songs"?"🎵 Find on YouTube":activeTab==="movies"?"▶ Watch Now":"📺 Watch Now"}
+            </a>
+          </div>
+        ))}
+      </div>
+
+      {/* Tip */}
+      <div style={{background:"rgba(107,143,113,0.1)",border:"1px solid rgba(107,143,113,0.25)",borderRadius:12,padding:"14px 16px",marginTop:20}}>
+        <div style={{fontWeight:600,fontSize:13,color:"#2d5a32",marginBottom:4}}>💡 Pro Tip for Level {activeLevel}</div>
+        <div style={{fontSize:12,color:"#555",lineHeight:1.6}}>
+          {activeLevel==="A1" && "Start with subtitles in your native language. Don't worry about understanding everything — just get used to the sounds and rhythm of German."}
+          {activeLevel==="A2" && "Switch to German subtitles when you can. Pause and repeat sentences you hear used in hospital/daily settings."}
+          {activeLevel==="B1" && "Watch without subtitles for 5 minutes first, then turn them on. Try to write down 5 new medical or everyday words per episode."}
+          {activeLevel==="B2" && "Watch without subtitles entirely. After each episode, try to summarise what happened in German — even a few sentences helps a lot."}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [screen, setScreen] = useState("onboard");
@@ -970,9 +1184,9 @@ export default function App() {
           <div><div style={S.logoText}>Your GC Buddy</div><div style={S.logoSub}>by Testbook</div></div>
         </div>
         <nav style={{display:"flex",gap:3}}>
-          {["dashboard","curriculum","chat","exercise","translations"].map(t => (
+          {["dashboard","curriculum","chat","exercise","translations","media"].map(t => (
             <button key={t} style={S.navPill(tab===t)} onClick={()=>setTab(t)}>
-              {t==="dashboard"?"Dashboard":t==="curriculum"?"Curriculum":t==="chat"?"Chat with Luca":t==="exercise"?"Daily Exercise":"Translations"}
+              {t==="dashboard"?"Dashboard":t==="curriculum"?"Curriculum":t==="chat"?"Chat with Luca":t==="exercise"?"Daily Exercise":t==="translations"?"Translations":"Media"}
             </button>
           ))}
         </nav>
@@ -1087,6 +1301,7 @@ export default function App() {
 
         {tab==="exercise" && <ExercisePanel user={user} history={messages} onBack={()=>setTab("chat")} onDone={handleExDone} exerciseDoneAt={exerciseDoneAt}/>}
         {tab==="translations" && <TranslationPanel/>}
+        {tab==="media" && <MediaPanel user={user}/>}
       </div>
       <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}`}</style>
     </div>
