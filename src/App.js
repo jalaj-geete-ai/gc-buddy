@@ -68,7 +68,7 @@ async function createProgress(roll, name, email, level) {
 }
 
 
-const ANTHROPIC_MODEL = "claude-sonnet-4-5";
+const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 const CURRICULUM = {
   A1: [
@@ -105,18 +105,75 @@ const LEVELS = ["A1","A2","B1","B2"];
 
 // 10 questions — scored out of 10
 // 9–10 correct → B1 | 7–8 → A2 | 5–6 → A1 | <5 → Beginner
-const PLACEMENT_QS = [
-  { q:"What does 'Guten Morgen' mean?", opts:["Good night","Good morning","Good evening","Goodbye"], ans:"Good morning" },
-  { q:"Which article goes with 'Krankenhaus' (hospital)?", opts:["der","die","das","den"], ans:"das" },
-  { q:"Complete: Ich ___ Krankenschwester. (I am a nurse)", opts:["bin","bist","ist","sind"], ans:"bin" },
-  { q:"What does 'Bitte' mean?", opts:["Thank you","Sorry","Please","Goodbye"], ans:"Please" },
-  { q:"What is 'Wie geht es Ihnen?' in English?", opts:["Where are you?","How are you?","Who are you?","What do you want?"], ans:"How are you?" },
-  { q:"Choose the correct word: Die Patientin hat ___. (headache)", opts:["Fieber","Kopfschmerzen","Husten","Schwindel"], ans:"Kopfschmerzen" },
-  { q:"Which sentence uses correct word order?", opts:["Ich arbeite heute im Krankenhaus","Ich heute arbeite im Krankenhaus","Heute ich arbeite im Krankenhaus","Im Krankenhaus ich arbeite heute"], ans:"Ich arbeite heute im Krankenhaus" },
-  { q:"Which sentence is in the correct Perfekt (past) tense?", opts:["Ich habe gegessen","Ich bin gegessen","Ich hatte essen","Ich habe essen"], ans:"Ich habe gegessen" },
-  { q:"'Der Patient klagt über Schmerzen' means:", opts:["The patient has no pain","The patient complains of pain","The patient is sleeping","The patient is discharged"], ans:"The patient complains of pain" },
-  { q:"Correct modal verb — Der Arzt ___ das Rezept ausstellen. (must)", opts:["kann","darf","muss","soll"], ans:"muss" },
+const ALL_PLACEMENT_QS = [
+  // A1 — basics
+  { tag:"A1", q:"What does 'Guten Morgen' mean?", opts:["Good night","Good morning","Good evening","Goodbye"], ans:"Good morning" },
+  { tag:"A1", q:"Which article goes with 'Krankenhaus' (hospital)?", opts:["der","die","das","den"], ans:"das" },
+  { tag:"A1", q:"Complete: Ich ___ Krankenschwester. (I am a nurse)", opts:["bin","bist","ist","sind"], ans:"bin" },
+  { tag:"A1", q:"What does 'Bitte' mean?", opts:["Thank you","Sorry","Please","Goodbye"], ans:"Please" },
+  { tag:"A1", q:"What is 'Wie geht es Ihnen?' in English?", opts:["Where are you?","How are you?","Who are you?","What do you want?"], ans:"How are you?" },
+  { tag:"A1", q:"What does 'der Schmerz' mean?", opts:["The fever","The bandage","The pain","The medicine"], ans:"The pain" },
+  { tag:"A1", q:"Which is the correct greeting in the afternoon?", opts:["Guten Morgen","Guten Abend","Guten Tag","Gute Nacht"], ans:"Guten Tag" },
+  { tag:"A1", q:"'Bitte nehmen Sie Platz.' means:", opts:["Please stand up.","Please take a seat.","Please follow me.","Please wait outside."], ans:"Please take a seat." },
+  { tag:"A1", q:"What is the article for 'Tablette' (tablet)?", opts:["der","die","das","den"], ans:"die" },
+  { tag:"A1", q:"'Ich verstehe nicht' means:", opts:["I agree","I don't understand","I don't know","I am not ready"], ans:"I don't understand" },
+  // A2 — elementary
+  { tag:"A2", q:"Choose the correct word: Die Patientin hat ___. (headache)", opts:["Fieber","Kopfschmerzen","Husten","Schwindel"], ans:"Kopfschmerzen" },
+  { tag:"A2", q:"'Haben Sie Allergien?' means:", opts:["Have you eaten?","Do you have allergies?","Are you in pain?","Do you take medicines?"], ans:"Do you have allergies?" },
+  { tag:"A2", q:"What does 'die Blutdruckmessung' mean?", opts:["blood test","blood pressure measurement","blood transfusion","blood group"], ans:"blood pressure measurement" },
+  { tag:"A2", q:"Which preposition always takes accusative?", opts:["mit","von","durch","bei"], ans:"durch" },
+  { tag:"A2", q:"Correct verb: Die Schwester ___ dem Patienten. (helps)", opts:["helft","hilft","helfst","helfen"], ans:"hilft" },
+  { tag:"A2", q:"'nüchtern' in a medical context means:", opts:["dizzy","fasting","drowsy","conscious"], ans:"fasting" },
+  { tag:"A2", q:"'Wo haben Sie Schmerzen?' translates as:", opts:["When did the pain start?","Where is the pain?","How bad is the pain?","How long have you had pain?"], ans:"Where is the pain?" },
+  { tag:"A2", q:"Which article changes in the accusative case?", opts:["die (feminine)","das (neuter)","der (masculine)","alle (all)"], ans:"der (masculine)" },
+  { tag:"A2", q:"What does 'die Überweisung' mean?", opts:["the prescription","the referral","the discharge","the diagnosis"], ans:"the referral" },
+  { tag:"A2", q:"'Bitte atmen Sie tief ein.' means:", opts:["Please breathe out deeply.","Please breathe in deeply.","Please hold your breath.","Please cough now."], ans:"Please breathe in deeply." },
+  // B1 — intermediate
+  { tag:"B1", q:"Which sentence uses correct word order?", opts:["Ich arbeite heute im Krankenhaus","Ich heute arbeite im Krankenhaus","Heute ich arbeite im Krankenhaus","Im Krankenhaus ich arbeite heute"], ans:"Ich arbeite heute im Krankenhaus" },
+  { tag:"B1", q:"Which sentence is in the correct Perfekt (past) tense?", opts:["Ich habe gegessen","Ich bin gegessen","Ich hatte essen","Ich habe essen"], ans:"Ich habe gegessen" },
+  { tag:"B1", q:"'Der Patient klagt über Schmerzen' means:", opts:["The patient has no pain","The patient complains of pain","The patient is sleeping","The patient is discharged"], ans:"The patient complains of pain" },
+  { tag:"B1", q:"Correct modal verb — Der Arzt ___ das Rezept ausstellen. (must)", opts:["kann","darf","muss","soll"], ans:"muss" },
+  { tag:"B1", q:"Partizip II of 'schreiben' (to write):", opts:["geschreibt","geschreiben","geschrieben","schreibt"], ans:"geschrieben" },
+  { tag:"B1", q:"'Die Vitalzeichen werden gemessen.' is in which voice?", opts:["active","passive","subjunctive","imperative"], ans:"passive" },
+  { tag:"B1", q:"Which auxiliary verb does 'einschlafen' (to fall asleep) use in Perfekt?", opts:["haben","sein","werden","lassen"], ans:"sein" },
+  { tag:"B1", q:"'Sie sollen nüchtern bleiben.' — 'sollen' expresses:", opts:["ability","permission","instruction from another","personal desire"], ans:"instruction from another" },
+  { tag:"B1", q:"'die Dienstübergabe' means:", opts:["day shift","shift handover","nursing home","care plan"], ans:"shift handover" },
+  { tag:"B1", q:"Correct subordinate clause: 'Ich weiß, ___ der Patient Schmerzen hat.'", opts:["dass","das","ob","weil"], ans:"dass" },
+  // B2 — upper intermediate
+  { tag:"B2", q:"Konjunktiv II of 'können' for 'Sie' (polite request):", opts:["können","konnten","könnten","konnte"], ans:"könnten" },
+  { tag:"B2", q:"'Es wäre wichtig, pünktlich zu kommen.' — 'wäre' is:", opts:["Präteritum of sein","Konjunktiv II of sein","Perfekt of werden","Plusquamperfekt of haben"], ans:"Konjunktiv II of sein" },
+  { tag:"B2", q:"Which sentence is the most formal/polite request?", opts:["Geben Sie mir das!","Könnten Sie mir bitte helfen?","Du sollst mir helfen.","Hilf mir!"], ans:"Könnten Sie mir bitte helfen?" },
+  { tag:"B2", q:"'die Patientenverfügung' means:", opts:["patient complaint","advance directive / living will","patient transfer","discharge summary"], ans:"advance directive / living will" },
+  { tag:"B2", q:"Which is a correct relative clause?", opts:["Der Patient, der operiert wurde, erholt sich.","Der Patient, den operiert wurde, erholt sich.","Der Patient, dem operiert wurde, erholt sich.","Der Patient, dessen operiert wurde, erholt sich."], ans:"Der Patient, der operiert wurde, erholt sich." },
+  { tag:"B2", q:"'interprofessionell arbeiten' means:", opts:["working night shifts","working across professions as a team","working independently","working with documentation"], ans:"working across professions as a team" },
+  { tag:"B2", q:"Which construction uses Konjunktiv II correctly?", opts:["Wenn ich Zeit habe, helfe ich.","Wenn ich Zeit hätte, würde ich helfen.","Wenn ich Zeit gehabt habe, helfe ich.","Wenn ich Zeit haben werde, helfe ich."], ans:"Wenn ich Zeit hätte, würde ich helfen." },
+  { tag:"B2", q:"'Der Befund ist unauffällig.' means:", opts:["The result is alarming.","The result is pending.","The result is unremarkable / normal.","The result is unclear."], ans:"The result is unremarkable / normal." },
+  { tag:"B2", q:"Correct genitive: '___ Patienten Zustand verbesserte sich.' ", opts:["Des","Der","Dem","Den"], ans:"Des" },
+  { tag:"B2", q:"'die Bezugspflege' means:", opts:["emergency nursing","primary nursing (patient-assigned nurse)","nursing documentation","care home placement"], ans:"primary nursing (patient-assigned nurse)" },
 ];
+
+// Pick 10 random questions, no two consecutive same grammar tag, each test is unique
+function buildPlacementQs() {
+  const shuffled = [...ALL_PLACEMENT_QS].sort(() => Math.random() - 0.5);
+  const picked = [];
+  let lastTag = null;
+  for (const q of shuffled) {
+    if (picked.length >= 10) break;
+    if (q.tag === lastTag) continue; // avoid same level twice in a row
+    picked.push(q);
+    lastTag = q.tag;
+  }
+  // If we couldn't avoid repeats (edge case), just fill remaining randomly
+  if (picked.length < 10) {
+    for (const q of shuffled) {
+      if (picked.length >= 10) break;
+      if (!picked.includes(q)) picked.push(q);
+    }
+  }
+  return picked;
+}
+
+const PLACEMENT_QS = buildPlacementQs();
 
 async function callClaude(messages, system, maxTokens = 2000) {
   try {
@@ -139,19 +196,29 @@ async function callClaude(messages, system, maxTokens = 2000) {
 }
 
 function sysPrompt(user, topic) {
-  return `You are "Luca", a warm German tutor for Global Careers by Testbook. Student: ${user.name}, a nurse learning German to work in Germany. Level: ${user.level}.${topic ? ` Current topic: ${topic}.` : ""}
+  return `You are "Luca", a warm, expert German tutor for Global Careers by Testbook. You help Indian nurses learn German so they can work in Germany.
 
-Formatting rules — follow these strictly:
-- Use ## for section headings (e.g. ## Basic Greetings)
-- Use **word** to highlight German words or key terms
-- Use _text_ for grammar notes or translations in italics
-- Use bullet points (- item) for vocabulary lists
-- Use numbered lists (1. item) for step-by-step instructions
-- Keep paragraphs short — max 3 sentences each
-- Never use raw # or ## as the very first character of a message — always add a line break before headings
-- Do NOT write headings and content all in one run-on paragraph
+Student: ${user.name} | Level: ${user.level} | Background: Qualified nurse from India${topic ? ` | Current topic: ${topic}` : ""}
 
-Teach step by step. Relate all examples to hospital/nursing context. Be warm and encouraging.`;
+## Your teaching style
+- Always teach in structured sections using ## headings
+- Give 2–3 real nursing examples per concept (ward rounds, patient conversations, handover notes)
+- Contrast German with English AND Hindi where helpful (e.g. "der Schmerz = pain = दर्द")
+- Use **bold** for every German word or phrase you introduce
+- Use _italics_ for grammar rules and translations
+- Keep paragraphs to 2–3 sentences max — students read on mobile
+- End every lesson with 2–3 practice exercises for the student to try
+
+## Format rules (follow strictly)
+- Use ## for main sections, ### for sub-sections
+- Use - bullet points for vocabulary lists
+- Use numbered lists for step-by-step grammar rules
+- Never write a wall of text — break everything into sections
+- When showing a table of words, use | German | English | Hindi | format
+- Always respond in English unless explicitly asked to respond in German
+
+## Nursing context
+All examples should come from: ward rounds, patient admissions, medication rounds, shift handovers, doctor-nurse communication, emergency situations, or nursing documentation. Never give random non-medical examples.`;
 }
 
 const S = {
@@ -642,7 +709,7 @@ Return ONLY a valid JSON array of exactly 20 objects, no markdown:
   </>);
 }
 
-function Dashboard({ user, progress, messages, completedTopics, onStartLesson, onGoToChat, onGoToExercise, exerciseReady }) {
+function Dashboard({ user, progress, messages, completedTopics, onStartLesson, onGoToChat, onGoToExercise, onGoToVocab, onGoToGrammar, onGoToDocs, onGoToExam, exerciseReady }) {
   const total = Object.values(CURRICULUM).flat().length;
   const pct = Math.round((completedTopics.length/total)*100);
   let next = null;
@@ -652,6 +719,20 @@ function Dashboard({ user, progress, messages, completedTopics, onStartLesson, o
     }
     if (next) break;
   }
+
+  // Derive skill scores from available data
+  const grammarScore = progress.avgScore || 0;
+  const listeningScore = Math.min(100, Math.round((completedTopics.length / total) * 100 * 0.9 + 10));
+  const vocabScore = Math.min(100, completedTopics.length * 5);
+
+  // Weak areas logic
+  const weakAreas = [];
+  if (grammarScore < 60 && progress.sessions > 0) weakAreas.push({ area: "Grammar accuracy", tip: "Try the Grammar Quiz — focus on Articles and Verb Conjugation.", tab: "grammar" });
+  if (completedTopics.length < 3) weakAreas.push({ area: "Topic coverage", tip: "You have many topics to explore. Start the next curriculum topic today.", tab: "curriculum" });
+  if (messages.filter(m=>m.role==="user").length < 5) weakAreas.push({ area: "Speaking practice", tip: "Chat more with Luca — type in German to build confidence.", tab: "chat" });
+
+  const isFirstSession = progress.sessions <= 1;
+
   return (
     <div style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:26,minHeight:0}}>
       <div style={{fontWeight:700,fontSize:23,color:"#0a2463",marginBottom:4}}>
@@ -659,8 +740,25 @@ function Dashboard({ user, progress, messages, completedTopics, onStartLesson, o
       </div>
       <div style={{fontSize:12,color:"#6b7fa3",marginBottom:20}}>Roll No: {user.rollNumber} · Level {user.level} · Keep going, Germany awaits!</div>
 
+      {/* Day-1 achievement card — shown when sessions ≤ 1 */}
+      {isFirstSession && (
+        <div style={{background:"linear-gradient(135deg,#0a2463,#1a4494)",borderRadius:16,padding:"18px 20px",marginBottom:20,border:"1px solid #1e90ff33"}}>
+          <div style={{fontSize:10,color:"rgba(30,144,255,0.7)",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>🎉 Achievement Unlocked</div>
+          <div style={{fontWeight:700,fontSize:16,color:"#1e90ff",marginBottom:4}}>Placement Test Complete!</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.6,marginBottom:10}}>
+            Your level: <strong style={{color:"#fff"}}>{user.level}</strong> — great start! Your personalised 12-week plan is ready in Chat with Luca.
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={onGoToChat} style={{padding:"7px 16px",borderRadius:9,background:"#1e90ff",color:"#0a2463",fontWeight:700,fontSize:12,border:"none",cursor:"pointer"}}>
+              See my 12-week plan →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stats row */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:20}}>
-        {[["🔥",progress.streak,"Day streak"],["📚",`${completedTopics.length}/${total}`,"Topics done"],["🎯",progress.avgScore?`${progress.avgScore}%`:"—","Avg score"]].map(([icon,val,lbl]) => (
+        {[["🔥",progress.streak,"Day streak"],["📚",`${completedTopics.length}/${total}`,"Topics done"],["🎯",progress.sessions,"Sessions done"]].map(([icon,val,lbl]) => (
           <div key={lbl} style={{background:"#fff",borderRadius:14,padding:15,border:"1px solid #e8d5a3",boxShadow:"0 2px 8px rgba(26,26,46,0.08)"}}>
             <div style={{fontSize:20,marginBottom:6}}>{icon}</div>
             <div style={{fontWeight:700,fontSize:24,color:"#0a2463"}}>{val}</div>
@@ -668,6 +766,39 @@ function Dashboard({ user, progress, messages, completedTopics, onStartLesson, o
           </div>
         ))}
       </div>
+
+      {/* Skill scores */}
+      <div style={{background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:20,border:"1px solid #e8d5a3"}}>
+        <div style={{fontWeight:700,fontSize:13,color:"#0a2463",marginBottom:14}}>📊 Skill Scores</div>
+        {[["Grammar",grammarScore,"#c9a84c"],["Listening",listeningScore,"#1e90ff"],["Vocabulary",vocabScore,"#6b8f71"]].map(([skill,score,col])=>(
+          <div key={skill} style={{marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <span style={{fontSize:12,color:"#6b7fa3"}}>{skill}</span>
+              <span style={{fontSize:12,fontWeight:700,color:score>=70?"#2d5a32":score>=40?"#c9a84c":"#c45c3a"}}>{score}%</span>
+            </div>
+            <div style={{height:7,background:"#e8f0ff",borderRadius:4,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${score}%`,background:col,borderRadius:4,transition:"width 0.6s"}}/>
+            </div>
+          </div>
+        ))}
+        <div style={{fontSize:10,color:"#6b7fa3",marginTop:8,fontStyle:"italic"}}>Scores update as you complete exercises and topics</div>
+      </div>
+
+      {/* Weak areas */}
+      {weakAreas.length > 0 && (
+        <div style={{background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:20,border:"1px solid #fde8db"}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#0a2463",marginBottom:12}}>💡 Focus Areas This Week</div>
+          {weakAreas.map((w,i)=>(
+            <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:i<weakAreas.length-1?10:0}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:"#c9a84c",marginTop:6,flexShrink:0}}/>
+              <div>
+                <div style={{fontSize:12,fontWeight:600,color:"#0a2463",marginBottom:2}}>{w.area}</div>
+                <div style={{fontSize:11,color:"#6b7fa3",lineHeight:1.5}}>{w.tip}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {next && (
         <button style={{background:"linear-gradient(135deg,#0a2463,#1a4494)",borderRadius:14,padding:"18px 20px",color:"white",display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,border:"none",cursor:"pointer",width:"100%",textAlign:"left"}}
@@ -693,10 +824,30 @@ function Dashboard({ user, progress, messages, completedTopics, onStartLesson, o
           <div style={{fontSize:13,fontWeight:500,color:"#0a2463"}}>{exerciseReady?"Daily Exercise":"Exercise Done"}</div>
           <div style={{fontSize:10,color:"#6b7fa3",marginTop:2}}>{exerciseReady?"Ready to attempt!":"Come back tomorrow"}</div>
         </div>
+        <div style={{background:"linear-gradient(135deg,#eff6ff,#dbeafe)",borderRadius:14,padding:15,border:"1px solid #bfdbfe",cursor:"pointer"}} onClick={onGoToVocab}>
+          <div style={{fontSize:20,marginBottom:6}}>📚</div>
+          <div style={{fontSize:13,fontWeight:600,color:"#1d4ed8"}}>Vocabulary Builder</div>
+          <div style={{fontSize:10,color:"#6b7fa3",marginTop:2}}>Spaced repetition flashcards</div>
+        </div>
+        <div style={{background:"linear-gradient(135deg,#f5f3ff,#ede9fe)",borderRadius:14,padding:15,border:"1px solid #ddd6fe",cursor:"pointer"}} onClick={onGoToGrammar}>
+          <div style={{fontSize:20,marginBottom:6}}>🧠</div>
+          <div style={{fontSize:13,fontWeight:600,color:"#6d28d9"}}>Grammar Quiz</div>
+          <div style={{fontSize:10,color:"#6b7fa3",marginTop:2}}>MCQ grammar practice</div>
+        </div>
+        <div style={{background:"linear-gradient(135deg,#ecfdf5,#d1fae5)",borderRadius:14,padding:15,border:"1px solid #6ee7b7",cursor:"pointer"}} onClick={onGoToDocs}>
+          <div style={{fontSize:20,marginBottom:6}}>🏥</div>
+          <div style={{fontSize:13,fontWeight:600,color:"#065f46"}}>Hospital Documents</div>
+          <div style={{fontSize:10,color:"#6b7fa3",marginTop:2}}>Rezept, Pflegebericht, Übergabe</div>
+        </div>
+        <div style={{background:"linear-gradient(135deg,#fffbeb,#fef3c7)",borderRadius:14,padding:15,border:"1px solid #fde68a",cursor:"pointer"}} onClick={onGoToExam}>
+          <div style={{fontSize:20,marginBottom:6}}>🎓</div>
+          <div style={{fontSize:13,fontWeight:600,color:"#92400e"}}>B1/B2 Exam Prep</div>
+          <div style={{fontSize:10,color:"#6b7fa3",marginTop:2}}>Timed mock tests & exam pattern</div>
+        </div>
       </div>
 
       <div style={{fontWeight:700,fontSize:15,color:"#0a2463",marginBottom:10}}>Overall Progress</div>
-      <div style={{background:"#fff",borderRadius:12,padding:"14px 16px",border:"1px solid #e8d5a3"}}>
+      <div style={{background:"#fff",borderRadius:12,padding:"14px 16px",border:"1px solid #e8d5a3",marginBottom:20}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
           <span style={{fontSize:12,color:"#6b7fa3"}}>A1 → B2 Journey</span>
           <span style={{fontWeight:700,fontSize:14,color:"#1e90ff"}}>{pct}%</span>
@@ -706,6 +857,52 @@ function Dashboard({ user, progress, messages, completedTopics, onStartLesson, o
         </div>
         <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
           {LEVELS.map(l=><span key={l} style={{fontSize:10,fontWeight:600,color:l===user.level?"#1e90ff":"#6b7fa3"}}>{l}</span>)}
+        </div>
+      </div>
+
+      {/* Profile card */}
+      <div style={{background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:16,border:"1px solid #d0deff"}}>
+        <div style={{fontWeight:700,fontSize:13,color:"#0a2463",marginBottom:12}}>👤 Your Profile</div>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <label style={{cursor:"pointer",flexShrink:0}}>
+            <div style={{width:56,height:56,borderRadius:"50%",background:"linear-gradient(135deg,#0a2463,#1e90ff)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:"#fff",overflow:"hidden",border:"2px solid #d0deff"}}>
+              {user.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+            </div>
+            <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{
+              const f=e.target.files[0]; if(!f) return;
+              const r=new FileReader(); r.onload=()=>{
+                const img=document.querySelector("#profile-avatar");
+                if(img){img.src=r.result;img.style.display="block";img.previousSibling.style.display="none";}
+              }; r.readAsDataURL(f);
+            }}/>
+          </label>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:15,color:"#0a2463"}}>{user.name}</div>
+            <div style={{fontSize:12,color:"#6b7fa3",marginTop:2}}>{user.email}</div>
+            <div style={{fontSize:11,color:"#1e90ff",marginTop:3,fontWeight:600}}>Roll No: {user.rollNumber} · Level {user.level}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Referrals */}
+      <div style={{background:"linear-gradient(135deg,#fef9eb,#fef3c7)",borderRadius:14,padding:"16px 18px",border:"1px solid #fde68a",marginBottom:16}}>
+        <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:6}}>🎁 Refer a Friend — Get Rewards</div>
+        <div style={{fontSize:12,color:"#78350f",lineHeight:1.6,marginBottom:12}}>
+          Know another nurse planning to work in Germany? Share your referral link — when they join, you both unlock a <strong>bonus vocabulary pack</strong> and extra practice sets.
+        </div>
+        <div style={{background:"#fff",borderRadius:9,padding:"9px 12px",display:"flex",alignItems:"center",gap:8,marginBottom:10,border:"1px solid #fde68a"}}>
+          <span style={{fontSize:12,color:"#92400e",fontFamily:"monospace",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            https://gc-buddy-swart.vercel.app?ref={user.rollNumber}
+          </span>
+          <button onClick={()=>{
+            navigator.clipboard?.writeText(`https://gc-buddy-swart.vercel.app?ref=${user.rollNumber}`).then(()=>{
+              const btn=document.querySelector("#copy-ref-btn");
+              if(btn){btn.textContent="✓ Copied!";setTimeout(()=>{btn.textContent="Copy";},2000);}
+            });
+          }} id="copy-ref-btn" style={{padding:"5px 12px",borderRadius:7,background:"#0a2463",color:"#1e90ff",fontWeight:700,fontSize:11,border:"none",cursor:"pointer",flexShrink:0}}>Copy</button>
+        </div>
+        <div style={{fontSize:11,color:"#a16207",lineHeight:1.5}}>
+          Share via WhatsApp, email, or any messenger. Rewards are added automatically after your friend completes their placement test.
         </div>
       </div>
     </div>
@@ -745,6 +942,1504 @@ function CurriculumMap({ user, completedTopics, onStartLesson }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+
+
+
+// ══════════════════════════════════════════════════════════════
+//  VOCABULARY BUILDER — Spaced Repetition System
+// ══════════════════════════════════════════════════════════════
+
+const VOCAB_DECK = {
+  A1: [
+    { de: "die Schwester", en: "nurse (female)", hi: "नर्स", ex: "Die Schwester nimmt Blut ab." },
+    { de: "der Pfleger", en: "nurse (male)", hi: "पुरुष नर्स", ex: "Der Pfleger hilft dem Patienten." },
+    { de: "das Krankenhaus", en: "hospital", hi: "अस्पताल", ex: "Ich arbeite im Krankenhaus." },
+    { de: "der Patient", en: "patient (male)", hi: "मरीज़", ex: "Der Patient hat Schmerzen." },
+    { de: "die Patientin", en: "patient (female)", hi: "मरीज़ (महिला)", ex: "Die Patientin schläft." },
+    { de: "der Arzt", en: "doctor (male)", hi: "डॉक्टर", ex: "Der Arzt kommt gleich." },
+    { de: "die Ärztin", en: "doctor (female)", hi: "डॉक्टर (महिला)", ex: "Die Ärztin untersucht den Patienten." },
+    { de: "das Bett", en: "bed", hi: "बिस्तर", ex: "Das Bett ist Nummer 12." },
+    { de: "die Station", en: "ward / department", hi: "वार्ड", ex: "Ich bin auf der Inneren Station." },
+    { de: "die Medikamente", en: "medication / medicine", hi: "दवाई", ex: "Die Medikamente sind auf dem Tisch." },
+    { de: "der Schmerz", en: "pain", hi: "दर्द", ex: "Haben Sie Schmerzen?" },
+    { de: "das Fieber", en: "fever", hi: "बुखार", ex: "Der Patient hat hohes Fieber." },
+    { de: "der Blutdruck", en: "blood pressure", hi: "रक्तचाप", ex: "Ich messe den Blutdruck." },
+    { de: "die Tablette", en: "tablet / pill", hi: "गोली", ex: "Nehmen Sie eine Tablette." },
+    { de: "die Spritze", en: "injection / syringe", hi: "इंजेक्शन", ex: "Ich gebe eine Spritze." },
+  ],
+  A2: [
+    { de: "die Untersuchung", en: "examination", hi: "जांच", ex: "Die Untersuchung beginnt um 9 Uhr." },
+    { de: "die Diagnose", en: "diagnosis", hi: "रोग-निदान", ex: "Die Diagnose ist noch unklar." },
+    { de: "die Behandlung", en: "treatment", hi: "उपचार", ex: "Die Behandlung dauert zwei Wochen." },
+    { de: "die Allergie", en: "allergy", hi: "एलर्जी", ex: "Der Patient hat eine Penicillin-Allergie." },
+    { de: "der Verband", en: "bandage / dressing", hi: "पट्टी", ex: "Ich wechsle den Verband." },
+    { de: "das Rezept", en: "prescription", hi: "पर्चा", ex: "Der Arzt schreibt ein Rezept." },
+    { de: "die Wunde", en: "wound", hi: "घाव", ex: "Die Wunde muss gereinigt werden." },
+    { de: "der Puls", en: "pulse", hi: "नब्ज़", ex: "Ich messe den Puls: 72 Schläge pro Minute." },
+    { de: "die Atmung", en: "breathing / respiration", hi: "सांस", ex: "Die Atmung ist normal." },
+    { de: "die Infusion", en: "infusion / drip", hi: "ड्रिप", ex: "Der Patient bekommt eine Infusion." },
+    { de: "nüchtern", en: "fasting / on an empty stomach", hi: "खाली पेट", ex: "Bitte bleiben Sie nüchtern." },
+    { de: "allergisch", en: "allergic", hi: "एलर्जिक", ex: "Sind Sie allergisch auf etwas?" },
+    { de: "die Überweisung", en: "referral", hi: "रेफरल", ex: "Ich brauche eine Überweisung." },
+    { de: "der Notfall", en: "emergency", hi: "आपातकाल", ex: "Das ist ein Notfall!" },
+    { de: "das Labor", en: "laboratory", hi: "प्रयोगशाला", ex: "Die Blutprobe geht ins Labor." },
+  ],
+  B1: [
+    { de: "die Anamnese", en: "medical history", hi: "चिकित्सा इतिहास", ex: "Wir nehmen die Anamnese auf." },
+    { de: "die Pflegedokumentation", en: "nursing documentation", hi: "नर्सिंग दस्तावेज़ीकरण", ex: "Die Pflegedokumentation muss vollständig sein." },
+    { de: "die Dienstübergabe", en: "shift handover", hi: "शिफ्ट हैंडओवर", ex: "Die Dienstübergabe ist um 14 Uhr." },
+    { de: "das Pflegeheim", en: "nursing home / care home", hi: "वृद्धाश्रम", ex: "Er kommt ins Pflegeheim." },
+    { de: "die Wundversorgung", en: "wound care", hi: "घाव की देखभाल", ex: "Die Wundversorgung ist wichtig." },
+    { de: "der Pflegeplan", en: "care plan", hi: "देखभाल योजना", ex: "Der Pflegeplan wird täglich aktualisiert." },
+    { de: "die Vitalzeichen", en: "vital signs", hi: "महत्वपूर्ण संकेत", ex: "Bitte messen Sie die Vitalzeichen." },
+    { de: "subkutan", en: "subcutaneous (under the skin)", hi: "त्वचा के नीचे", ex: "Die Injektion wird subkutan gegeben." },
+    { de: "oral", en: "oral (by mouth)", hi: "मुंह से", ex: "Das Medikament wird oral eingenommen." },
+    { de: "intravenös", en: "intravenous (IV)", hi: "नसों में", ex: "Die Antibiotika werden intravenös gegeben." },
+    { de: "die Pflegefachkraft", en: "qualified nurse", hi: "योग्य नर्स", ex: "Sie ist eine ausgebildete Pflegefachkraft." },
+    { de: "die Nebenwirkung", en: "side effect", hi: "दुष्प्रभाव", ex: "Das Medikament hat Nebenwirkungen." },
+    { de: "die Einwilligung", en: "consent", hi: "सहमति", ex: "Der Patient muss die Einwilligung unterschreiben." },
+    { de: "die Isolation", en: "isolation", hi: "एकांतवास", ex: "Der Patient ist in Isolation." },
+    { de: "der Befund", en: "findings / test result", hi: "परिणाम", ex: "Der Befund ist unauffällig." },
+  ],
+  B2: [
+    { de: "die Palliativpflege", en: "palliative care", hi: "उपशामक देखभाल", ex: "Sie arbeitet in der Palliativpflege." },
+    { de: "die Multimorbidität", en: "multimorbidity (multiple conditions)", hi: "बहु-रुग्णता", ex: "Ältere Patienten haben oft Multimorbidität." },
+    { de: "die Patientenverfügung", en: "advance directive / living will", hi: "जीवन-इच्छा पत्र", ex: "Haben Sie eine Patientenverfügung?" },
+    { de: "das Qualitätsmanagement", en: "quality management", hi: "गुणवत्ता प्रबंधन", ex: "Das Qualitätsmanagement wird regelmäßig geprüft." },
+    { de: "die Hygienemaßnahmen", en: "hygiene measures", hi: "स्वच्छता उपाय", ex: "Bitte halten Sie die Hygienemaßnahmen ein." },
+    { de: "die Pflegeüberleitung", en: "care transition / handover to next facility", hi: "देखभाल स्थानांतरण", ex: "Die Pflegeüberleitung wird koordiniert." },
+    { de: "die Rehabilitation", en: "rehabilitation", hi: "पुनर्वास", ex: "Der Patient braucht Rehabilitation." },
+    { de: "der Stationsleiterin", en: "ward manager (female)", hi: "वार्ड प्रमुख (महिला)", ex: "Die Stationsleiterin bespricht den Fall." },
+    { de: "das Dekubitus", en: "pressure ulcer / bedsore", hi: "दबाव घाव", ex: "Wir müssen das Dekubitus verhindern." },
+    { de: "die Aspirationsgefahr", en: "risk of aspiration", hi: "श्वास में जाने का खतरा", ex: "Bei Schluckstörungen besteht Aspirationsgefahr." },
+    { de: "interprofessionell", en: "interprofessional (across professions)", hi: "अंतर-पेशेवर", ex: "Wir arbeiten interprofessionell zusammen." },
+    { de: "die Bezugspflege", en: "primary nursing / patient-centered care", hi: "प्राथमिक नर्सिंग", ex: "Wir praktizieren Bezugspflege." },
+    { de: "der Pflegeschlüssel", en: "nurse-to-patient ratio", hi: "नर्स-मरीज़ अनुपात", ex: "Der Pflegeschlüssel ist zu niedrig." },
+    { de: "die Komplikation", en: "complication", hi: "जटिलता", ex: "Es sind keine Komplikationen aufgetreten." },
+    { de: "das Einzugsgebiet", en: "catchment area", hi: "क्षेत्र", ex: "Das Krankenhaus hat ein großes Einzugsgebiet." },
+  ],
+};
+
+// SRS: intervals in minutes [again, hard, good, easy]
+const SRS_INTERVALS = [1, 10, 60, 1440]; // again=1min, hard=10min, good=1hr, easy=1day
+
+function VocabPanel({ user }) {
+  const level = user?.level || "A1";
+  const [activeLevel, setActiveLevel] = useState(level);
+  const [cards, setCards] = useState(() => {
+    const deck = VOCAB_DECK[level] || [];
+    return deck.map((c, i) => ({ ...c, id: i, box: 0, nextReview: 0, reviewCount: 0, easeFactor: 2.5 }));
+  });
+  const [mode, setMode] = useState("menu"); // menu | study | done
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [showHindi, setShowHindi] = useState(true);
+  const [sessionStats, setSessionStats] = useState({ seen: 0, correct: 0 });
+
+  // Switch deck when level changes
+  function switchLevel(lvl) {
+    setActiveLevel(lvl);
+    const deck = VOCAB_DECK[lvl] || [];
+    setCards(deck.map((c, i) => ({ ...c, id: i, box: 0, nextReview: 0, reviewCount: 0, easeFactor: 2.5 })));
+    setMode("menu");
+    setCurrentIdx(0);
+    setFlipped(false);
+  }
+
+  const dueCards = cards.filter(c => c.nextReview <= Date.now());
+  const mastered = cards.filter(c => c.box >= 3).length;
+  const total = cards.length;
+
+  function startStudy() {
+    if (dueCards.length === 0) return;
+    setCurrentIdx(0);
+    setFlipped(false);
+    setSessionStats({ seen: 0, correct: 0 });
+    setMode("study");
+  }
+
+  function rate(difficulty) { // 0=again, 1=hard, 2=good, 3=easy
+    const card = dueCards[currentIdx];
+    if (!card) return;
+    const intervalMs = SRS_INTERVALS[difficulty] * 60 * 1000;
+    const newBox = difficulty === 0 ? 0 : Math.min(card.box + 1, 4);
+    setCards(prev => prev.map(c =>
+      c.id === card.id
+        ? { ...c, box: newBox, nextReview: Date.now() + intervalMs, reviewCount: c.reviewCount + 1 }
+        : c
+    ));
+    setSessionStats(s => ({ seen: s.seen + 1, correct: s.correct + (difficulty >= 2 ? 1 : 0) }));
+    setFlipped(false);
+    if (currentIdx + 1 >= dueCards.length) {
+      setMode("done");
+    } else {
+      setCurrentIdx(i => i + 1);
+    }
+  }
+
+  function speak(text) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "de-DE"; u.rate = 0.85;
+    window.speechSynthesis.speak(u);
+  }
+
+  const current = dueCards[currentIdx];
+  const boxColors = ["#e8f0ff","#fef3c7","#dcfce7","#e0f2fe","#f3e8ff"];
+  const boxLabels = ["New","Learning","Review","Strong","Mastered"];
+
+  // ── MENU ──
+  if (mode === "menu") return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      <div style={{fontWeight:700,fontSize:22,color:"#0a2463",marginBottom:4}}>📚 Vocabulary Builder</div>
+      <div style={{fontSize:12,color:"#6b7fa3",marginBottom:20}}>Spaced repetition flashcards — nursing German vocabulary</div>
+
+      {/* Level tabs */}
+      <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+        {["A1","A2","B1","B2"].map(lvl => (
+          <button key={lvl} onClick={() => switchLevel(lvl)}
+            style={{padding:"7px 20px",borderRadius:20,fontSize:13,fontWeight:600,border:`1.5px solid ${activeLevel===lvl?"#0a2463":"#d0deff"}`,cursor:"pointer",background:activeLevel===lvl?"#0a2463":"#fff",color:activeLevel===lvl?"#1e90ff":"#6b7fa3"}}>
+            {lvl} {lvl===user?.level && <span style={{fontSize:10}}>★</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* Stats bar */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:20}}>
+        {[["📖",dueCards.length,"Due now"],["⭐",mastered,"Mastered"],["🗂️",total,"Total cards"]].map(([icon,val,lbl])=>(
+          <div key={lbl} style={{background:"#fff",borderRadius:14,padding:"14px 16px",border:"1px solid #d0deff",textAlign:"center"}}>
+            <div style={{fontSize:20,marginBottom:4}}>{icon}</div>
+            <div style={{fontWeight:700,fontSize:22,color:"#0a2463"}}>{val}</div>
+            <div style={{fontSize:11,color:"#6b7fa3"}}>{lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      <div style={{background:"#fff",borderRadius:14,padding:"16px 20px",marginBottom:16,border:"1px solid #d0deff"}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+          <span style={{fontSize:13,fontWeight:600,color:"#0a2463"}}>Level Progress</span>
+          <span style={{fontSize:12,color:"#6b7fa3"}}>{mastered}/{total} mastered</span>
+        </div>
+        <div style={{height:10,background:"#e8f0ff",borderRadius:6,overflow:"hidden"}}>
+          <div style={{height:"100%",background:"linear-gradient(90deg,#1e90ff,#0a6abf)",borderRadius:6,width:`${total>0?(mastered/total)*100:0}%`,transition:"width 0.5s"}}/>
+        </div>
+        {/* Box breakdown */}
+        <div style={{display:"flex",gap:6,marginTop:12,flexWrap:"wrap"}}>
+          {boxLabels.map((lbl,bi)=>{
+            const count = cards.filter(c=>c.box===bi).length;
+            return count > 0 ? (
+              <span key={lbl} style={{fontSize:11,padding:"2px 10px",borderRadius:12,background:boxColors[bi],color:"#0a2463",fontWeight:500}}>
+                {lbl}: {count}
+              </span>
+            ) : null;
+          })}
+        </div>
+      </div>
+
+      {/* Start button */}
+      <button onClick={startStudy} disabled={dueCards.length===0}
+        style={{width:"100%",padding:16,borderRadius:14,background:dueCards.length===0?"#e8f0ff":"linear-gradient(135deg,#0a2463,#1e90ff)",color:dueCards.length===0?"#6b7fa3":"#fff",fontWeight:700,fontSize:16,border:"none",cursor:dueCards.length===0?"not-allowed":"pointer",boxShadow:dueCards.length>0?"0 4px 16px rgba(30,144,255,0.3)":"none",marginBottom:12}}>
+        {dueCards.length===0 ? "✅ All caught up! Come back later" : `▶ Study ${dueCards.length} due card${dueCards.length>1?"s":""}`}
+      </button>
+
+      {/* Hindi toggle */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fff",borderRadius:12,padding:"12px 16px",border:"1px solid #d0deff",marginBottom:16}}>
+        <span style={{fontSize:13,color:"#0a2463",fontWeight:500}}>🇮🇳 Show Hindi translations</span>
+        <button onClick={()=>setShowHindi(h=>!h)} style={{width:42,height:24,borderRadius:12,background:showHindi?"#1e90ff":"#d0deff",border:"none",cursor:"pointer",position:"relative",transition:"background 0.2s"}}>
+          <div style={{position:"absolute",top:3,left:showHindi?20:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+        </button>
+      </div>
+
+      {/* Card list preview */}
+      <div style={{fontWeight:600,fontSize:13,color:"#0a2463",marginBottom:10}}>All {activeLevel} Cards</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {cards.map((c,i)=>(
+          <div key={i} style={{background:"#fff",borderRadius:11,padding:"11px 14px",border:"1px solid #e8f0ff",display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:boxColors[c.box],color:"#0a2463",fontWeight:600,flexShrink:0}}>{boxLabels[c.box]}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:14,fontWeight:700,color:"#0a2463"}}>{c.de}</div>
+              <div style={{fontSize:12,color:"#6b7fa3"}}>{c.en}{showHindi&&c.hi?` · ${c.hi}`:""}</div>
+            </div>
+            {c.reviewCount>0 && <span style={{fontSize:10,color:"#1e90ff",background:"rgba(30,144,255,0.1)",padding:"2px 7px",borderRadius:8}}>×{c.reviewCount}</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── DONE ──
+  if (mode === "done") return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,background:"#f0f4ff"}}>
+      <div style={{fontSize:56,marginBottom:16}}>🎉</div>
+      <div style={{fontWeight:700,fontSize:24,color:"#0a2463",marginBottom:8}}>Session Complete!</div>
+      <div style={{fontSize:14,color:"#6b7fa3",marginBottom:24,textAlign:"center"}}>
+        You reviewed <strong style={{color:"#0a2463"}}>{sessionStats.seen}</strong> cards<br/>
+        <strong style={{color:"#1e90ff"}}>{sessionStats.correct}</strong> marked Good or Easy
+      </div>
+      <div style={{display:"flex",gap:12,marginBottom:24}}>
+        <button onClick={()=>setMode("menu")} style={{padding:"12px 24px",borderRadius:12,background:"#fff",border:"1.5px solid #d0deff",color:"#0a2463",fontWeight:600,cursor:"pointer",fontSize:14}}>
+          ← Back to Deck
+        </button>
+        {dueCards.length>0 && (
+          <button onClick={startStudy} style={{padding:"12px 24px",borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,cursor:"pointer",fontSize:14,border:"none"}}>
+            Study More →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── STUDY ──
+  if (!current) { setMode("done"); return null; }
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      {/* Header row */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <button onClick={()=>setMode("menu")} style={{padding:"6px 14px",borderRadius:9,background:"#fff",border:"1.5px solid #d0deff",color:"#6b7fa3",fontWeight:600,cursor:"pointer",fontSize:12}}>← Deck</button>
+        <div style={{fontSize:12,color:"#6b7fa3"}}>{currentIdx+1} / {dueCards.length} due</div>
+        <span style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:boxColors[current.box],color:"#0a2463",fontWeight:600}}>{boxLabels[current.box]}</span>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{height:5,background:"#e8f0ff",borderRadius:4,marginBottom:20,overflow:"hidden"}}>
+        <div style={{height:"100%",background:"linear-gradient(90deg,#1e90ff,#0a6abf)",width:`${(currentIdx/dueCards.length)*100}%`,transition:"width 0.3s"}}/>
+      </div>
+
+      {/* Flashcard */}
+      <div onClick={()=>setFlipped(f=>!f)} style={{background:"#fff",borderRadius:20,padding:"32px 24px",marginBottom:16,border:"2px solid #d0deff",cursor:"pointer",minHeight:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",boxShadow:"0 4px 20px rgba(10,36,99,0.08)",userSelect:"none"}}>
+        <div style={{fontSize:10,fontWeight:600,color:"#6b7fa3",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>
+          {flipped ? "Meaning" : "🇩🇪 German — tap to reveal"}
+        </div>
+        <div style={{fontSize:28,fontWeight:700,color:"#0a2463",marginBottom:flipped?16:0,lineHeight:1.3}}>{current.de}</div>
+
+        {flipped && (
+          <>
+            <div style={{fontSize:18,fontWeight:600,color:"#1e90ff",marginBottom:8}}>🇬🇧 {current.en}</div>
+            {showHindi && current.hi && (
+              <div style={{fontSize:15,color:"#6b8f71",fontWeight:500,marginBottom:12}}>🇮🇳 {current.hi}</div>
+            )}
+            <div style={{background:"#f0f4ff",borderRadius:10,padding:"10px 16px",marginTop:8,maxWidth:"100%"}}>
+              <div style={{fontSize:10,color:"#6b7fa3",marginBottom:4,fontWeight:600}}>EXAMPLE</div>
+              <div style={{fontSize:13,color:"#0a2463",fontStyle:"italic"}}>{current.ex}</div>
+            </div>
+            <button onClick={e=>{e.stopPropagation();speak(current.de);}}
+              style={{marginTop:14,padding:"7px 18px",borderRadius:9,background:"#0a2463",color:"#1e90ff",fontWeight:600,fontSize:12,border:"none",cursor:"pointer"}}>
+              🔊 Hear it
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Rating buttons */}
+      {flipped ? (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+          {[["Again","🔴",0,"#fef2f2","#ef4444"],["Hard","🟠",1,"#fff7ed","#f97316"],["Good","🟢",2,"#f0fdf4","#22c55e"],["Easy","🔵",3,"#eff6ff","#3b82f6"]].map(([lbl,icon,val,bg,col])=>(
+            <button key={lbl} onClick={()=>rate(val)}
+              style={{padding:"12px 8px",borderRadius:12,background:bg,border:`2px solid ${col}20`,cursor:"pointer",fontWeight:700,fontSize:12,color:col,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <span style={{fontSize:18}}>{icon}</span>{lbl}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div style={{textAlign:"center",color:"#6b7fa3",fontSize:13,padding:"12px 0"}}>
+          👆 Tap the card to reveal the meaning
+        </div>
+      )}
+
+      {/* Hint bar */}
+      <div style={{marginTop:16,background:"rgba(30,144,255,0.05)",borderRadius:10,padding:"10px 14px",fontSize:11,color:"#6b7fa3",textAlign:"center"}}>
+        <strong style={{color:"#1e90ff"}}>Again</strong> = forgot · <strong style={{color:"#f97316"}}>Hard</strong> = recalled with effort · <strong style={{color:"#22c55e"}}>Good</strong> = correct · <strong style={{color:"#3b82f6"}}>Easy</strong> = instant recall
+      </div>
+    </div>
+  );
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  GRAMMAR QUIZ — Flashcard + MCQ System
+// ══════════════════════════════════════════════════════════════
+
+const GRAMMAR_TOPICS = [
+  {
+    id: "articles",
+    title: "Articles (der/die/das)",
+    icon: "🏷️",
+    desc: "Definite articles for nouns",
+    level: "A1",
+    cards: [
+      { q: "What is the article for 'Krankenhaus' (hospital)?", a: "das", opts: ["der","die","das","die"], hint: "Krankenhaus is neuter (Haus words are usually neuter)" },
+      { q: "What is the article for 'Schwester' (nurse/sister)?", a: "die", opts: ["der","die","das","ein"], hint: "Schwester is feminine — most job titles for women are 'die'" },
+      { q: "What is the article for 'Arzt' (doctor, male)?", a: "der", opts: ["der","die","das","einen"], hint: "Arzt is masculine — most male job titles use 'der'" },
+      { q: "What is the article for 'Station' (ward)?", a: "die", opts: ["der","die","das","dem"], hint: "Station ends in -ion, which is almost always feminine" },
+      { q: "What is the article for 'Patient' (patient, male)?", a: "der", opts: ["der","die","das","ein"], hint: "Patient is masculine" },
+      { q: "What is the article for 'Blut' (blood)?", a: "das", opts: ["der","die","das","die"], hint: "Blut is neuter" },
+      { q: "What is the article for 'Schmerz' (pain)?", a: "der", opts: ["der","die","das","ein"], hint: "Schmerz is masculine" },
+      { q: "What is the article for 'Wunde' (wound)?", a: "die", opts: ["der","die","das","eine"], hint: "Wunde ends in -e → usually feminine" },
+    ]
+  },
+  {
+    id: "verbs-present",
+    title: "Present Tense Verbs",
+    icon: "⚡",
+    desc: "Verb conjugation in present tense",
+    level: "A1",
+    cards: [
+      { q: "Conjugate 'kommen' for 'ich' (I come):", a: "ich komme", opts: ["ich komme","ich kommt","ich kommen","ich kommst"], hint: "ich → remove -en, add -e" },
+      { q: "Conjugate 'haben' for 'der Patient' (the patient has):", a: "der Patient hat", opts: ["der Patient haben","der Patient hat","der Patient habe","der Patient habt"], hint: "er/sie/es → hat (irregular!)" },
+      { q: "Conjugate 'sein' for 'ich' (I am):", a: "ich bin", opts: ["ich sein","ich ist","ich bin","ich bist"], hint: "sein is highly irregular: ich → bin" },
+      { q: "Conjugate 'nehmen' for 'ich' (I take):", a: "ich nehme", opts: ["ich nehme","ich nimmt","ich nehmt","ich nimmst"], hint: "nehmen → ich nehme (stem change happens for du/er)" },
+      { q: "Conjugate 'arbeiten' for 'sie' (she works):", a: "sie arbeitet", opts: ["sie arbeite","sie arbeitet","sie arbeiten","sie arbeit"], hint: "stems ending in -t add -et for er/sie/es" },
+      { q: "Conjugate 'können' for 'ich' (I can):", a: "ich kann", opts: ["ich könne","ich kannst","ich kann","ich können"], hint: "modal verbs: ich = er form (no ending)" },
+      { q: "Conjugate 'müssen' for 'wir' (we must):", a: "wir müssen", opts: ["wir muss","wir müsst","wir müssen","wir musst"], hint: "wir always takes the infinitive form" },
+      { q: "Conjugate 'geben' for 'ich' (I give):", a: "ich gebe", opts: ["ich gibt","ich gebe","ich geben","ich gibst"], hint: "stem change (e→i) only for du/er/sie/es" },
+    ]
+  },
+  {
+    id: "cases",
+    title: "Accusative Case",
+    icon: "🎯",
+    desc: "When and how to use Akkusativ",
+    level: "A2",
+    cards: [
+      { q: "Which case is used for the direct object of a sentence?", a: "Accusative (Akkusativ)", opts: ["Nominative","Accusative (Akkusativ)","Dative","Genitive"], hint: "Direct object = what receives the action" },
+      { q: "Change 'der Patient' to accusative:", a: "den Patienten", opts: ["der Patienten","dem Patienten","den Patienten","des Patienten"], hint: "der → den in accusative" },
+      { q: "Which article stays the same in accusative?", a: "die (feminine)", opts: ["der (masculine)","die (feminine)","das (neuter)","all change"], hint: "Only masculine changes: der→den. die and das stay the same" },
+      { q: "Fill in: 'Ich rufe ___ Arzt.' (I'm calling the doctor)", a: "den", opts: ["der","den","dem","des"], hint: "Arzt is masculine (der) → accusative = den" },
+      { q: "Fill in: 'Ich messe ___ Blutdruck.' (I'm measuring the blood pressure)", a: "den", opts: ["der","den","dem","das"], hint: "Blutdruck is masculine → accusative = den" },
+      { q: "Which preposition always takes accusative?", a: "durch (through)", opts: ["mit","von","durch (through)","bei"], hint: "durch, für, gegen, ohne, um → always accusative" },
+      { q: "Fill in: 'Haben Sie ___ Schmerzen?' (Do you have pain?)", a: "keine (no article needed for plural)", opts: ["den","keine (no article needed for plural)","dem","der"], hint: "Schmerzen (plural) with no pain = keine Schmerzen" },
+      { q: "Fill in: 'Bitte nehmen Sie ___ Tablette.' (Please take the tablet)", a: "die", opts: ["der","den","die","das"], hint: "Tablette is feminine → die stays die in accusative" },
+    ]
+  },
+  {
+    id: "modal-verbs",
+    title: "Modal Verbs",
+    icon: "🔑",
+    desc: "müssen, können, dürfen, sollen, wollen, mögen",
+    level: "B1",
+    cards: [
+      { q: "Which modal verb means 'must / have to'?", a: "müssen", opts: ["können","müssen","dürfen","sollen"], hint: "müssen = obligation / necessity" },
+      { q: "Which modal verb means 'may / is allowed to'?", a: "dürfen", opts: ["müssen","wollen","dürfen","können"], hint: "dürfen = permission (allowed to)" },
+      { q: "Translate: 'Der Patient darf nicht essen.' (The patient...)", a: "The patient is not allowed to eat.", opts: ["The patient cannot eat.","The patient must not eat.","The patient is not allowed to eat.","The patient does not want to eat."], hint: "dürfen nicht = not allowed to (prohibition)" },
+      { q: "Where does the infinitive go in a modal sentence?", a: "At the end of the sentence", opts: ["After the subject","After the modal verb","At the end of the sentence","Before the modal verb"], hint: "Modal + subject → infinitive at END" },
+      { q: "Complete: 'Sie ___ jeden Tag Medikamente nehmen.' (She must take medicine every day)", a: "muss", opts: ["kann","darf","muss","soll"], hint: "must/have to = müssen; sie (she) → muss" },
+      { q: "Complete: 'Ich ___ Ihnen helfen.' (I can help you)", a: "kann", opts: ["muss","kann","will","soll"], hint: "can/able to = können; ich → kann" },
+      { q: "Complete: 'Sie ___ nüchtern bleiben.' (You should stay fasting — medical instruction)", a: "sollen", opts: ["wollen","müssen","sollen","können"], hint: "sollen = should (instruction from someone else)" },
+      { q: "What is the past tense (Perfekt) of 'müssen' used in speech?", a: "hat gemusst", opts: ["hat müssen","ist gemusst","hat gemusst","hatte müssen"], hint: "Modal verbs in Perfekt: haben + gemusst/gekonnt/gedurft" },
+    ]
+  },
+  {
+    id: "perfekt",
+    title: "Perfekt (Past Tense)",
+    icon: "⏪",
+    desc: "haben/sein + Partizip II",
+    level: "B1",
+    cards: [
+      { q: "What two parts make up the Perfekt tense?", a: "haben/sein + Partizip II", opts: ["wurde + Infinitiv","haben/sein + Partizip II","hatte + Partizip II","war + Infinitiv"], hint: "Perfekt = auxiliary (haben/sein) + past participle at end" },
+      { q: "How do you form Partizip II for regular verbs? (e.g. machen → ?)", a: "ge-macht", opts: ["gemachen","ge-macht","gemacht-en","macht"], hint: "ge- + stem + -(e)t → gemacht, gespielt, gearbeitet" },
+      { q: "Which auxiliary does 'gehen' (to go) use in Perfekt?", a: "sein (ist gegangen)", opts: ["haben (hat gegangen)","sein (ist gegangen)","haben (hat gehen)","sein (ist gehen)"], hint: "Verbs of movement/change of state → sein: gehen, fahren, kommen, laufen" },
+      { q: "Which auxiliary does 'haben' (to have) use in Perfekt?", a: "haben (hat gehabt)", opts: ["sein (ist gehabt)","haben (hat gehabt)","sein (ist haben)","haben (hat gehabt)"], hint: "Most transitive verbs → haben" },
+      { q: "Complete: 'Die Schwester ___ die Medikamente gegeben.' (The nurse gave the medicine)", a: "hat", opts: ["ist","hat","hatte","sei"], hint: "geben = transitive → hat gegeben" },
+      { q: "Complete: 'Der Patient ___ aufgestanden.' (The patient got up)", a: "ist", opts: ["hat","ist","hatte","sein"], hint: "aufstehen = movement/change → ist aufgestanden" },
+      { q: "What is the Partizip II of 'schreiben' (to write)?", a: "geschrieben", opts: ["geschreibt","geSchreibt","geschrieben","geschreiben"], hint: "Strong verb: irregular → geschrieben (like dritten, geblieben)" },
+      { q: "What is the Partizip II of 'nehmen' (to take)?", a: "genommen", opts: ["genommt","genehmt","genommen","genahm"], hint: "Strong irregular verb → genommen" },
+    ]
+  },
+  {
+    id: "konjunktiv",
+    title: "Konjunktiv II",
+    icon: "🧩",
+    desc: "Subjunctive mood for polite requests",
+    level: "B2",
+    cards: [
+      { q: "What is Konjunktiv II mainly used for in nursing?", a: "Polite requests and hypothetical statements", opts: ["Commands","Polite requests and hypothetical statements","Questions","Past events"], hint: "Konjunktiv II softens requests: 'Könnten Sie…?' instead of 'Können Sie…?'" },
+      { q: "What is the Konjunktiv II of 'können' for 'Sie'?", a: "könnten", opts: ["können","konnten","könnten","konnte"], hint: "könnte(n) — add Umlaut + Konjunktiv II ending" },
+      { q: "Translate to polite form: 'Can you help me?' →", a: "Könnten Sie mir helfen?", opts: ["Können Sie mir helfen?","Könnten Sie mir helfen?","Konnten Sie mir helfen?","Könntest du helfen mir?"], hint: "könnten = polite Konjunktiv II of können" },
+      { q: "What is the Konjunktiv II of 'sein' for 'ich'?", a: "wäre", opts: ["sei","bin","wäre","war"], hint: "wäre(n) = Konjunktiv II of sein" },
+      { q: "Which sentence uses Konjunktiv II correctly?", a: "Hätten Sie einen Moment Zeit?", opts: ["Hatten Sie einen Moment Zeit?","Hätten Sie einen Moment Zeit?","Haben Sie einen Moment Zeit bitte?","Hatte Sie einen Moment Zeit?"], hint: "hätten = Konjunktiv II of haben — polite" },
+      { q: "Complete: 'Es ___ wichtig, die Medikamente pünktlich zu nehmen.' (It would be important…)", a: "wäre", opts: ["ist","war","wäre","sein"], hint: "wäre = Konjunktiv II of sein (es wäre = it would be)" },
+      { q: "Konjunktiv II of 'müssen' for 'Sie':", a: "müssten", opts: ["mußten","müssten","mössten","müssteen"], hint: "müssen → müssten (Umlaut + -ten)" },
+      { q: "Which is the most polite way to ask a patient to stay still?", a: "Würden Sie bitte stillhalten?", opts: ["Stillhalten!","Sie müssen stillhalten!","Würden Sie bitte stillhalten?","Halten Sie still!"], hint: "würden + Infinitiv = very polite Konjunktiv II request form" },
+    ]
+  },
+];
+
+function GrammarQuizPanel({ user }) {
+  const [view, setView] = useState("menu"); // menu | quiz | result
+  const [activeTopic, setActiveTopic] = useState(null);
+  const [shuffled, setShuffled] = useState([]);
+  const [qIdx, setQIdx] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [score, setScore] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [showHint, setShowHint] = useState(false);
+
+  const userLevel = user?.level || "A1";
+  const levelOrder = ["A1","A2","B1","B2"];
+
+  function startTopic(topic) {
+    const shuffledCards = [...topic.cards].sort(()=>Math.random()-0.5);
+    setActiveTopic(topic);
+    setShuffled(shuffledCards);
+    setQIdx(0);
+    setSelected(null);
+    setScore(0);
+    setAnswers([]);
+    setShowHint(false);
+    setView("quiz");
+  }
+
+  function choose(opt) {
+    if (selected !== null) return;
+    setSelected(opt);
+    const correct = opt === shuffled[qIdx].a;
+    if (correct) setScore(s=>s+1);
+    setAnswers(prev=>[...prev,{q:shuffled[qIdx].q, chosen:opt, correct, correctAns:shuffled[qIdx].a}]);
+  }
+
+  function next() {
+    if (qIdx+1 >= shuffled.length) {
+      setView("result");
+    } else {
+      setQIdx(i=>i+1);
+      setSelected(null);
+      setShowHint(false);
+    }
+  }
+
+  const current = shuffled[qIdx];
+  const levelColors2 = {A1:"#6b8f71",A2:"#c9a84c",B1:"#1e90ff",B2:"#c45c3a"};
+
+  // ── MENU ──
+  if (view === "menu") return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      <div style={{fontWeight:700,fontSize:22,color:"#0a2463",marginBottom:4}}>🧠 Grammar Quiz</div>
+      <div style={{fontSize:12,color:"#6b7fa3",marginBottom:20}}>Flashcard-style grammar practice with MCQ — tap a topic to start</div>
+
+      {levelOrder.map(lvl => {
+        const topicsForLevel = GRAMMAR_TOPICS.filter(t=>t.level===lvl);
+        if (topicsForLevel.length===0) return null;
+        const isAccessible = levelOrder.indexOf(lvl) <= levelOrder.indexOf(userLevel);
+        return (
+          <div key={lvl} style={{marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <span style={{fontSize:12,fontWeight:700,padding:"3px 12px",borderRadius:12,background:isAccessible?levelColors2[lvl]+"22":"#e8f0ff",color:isAccessible?levelColors2[lvl]:"#b0c0d8"}}>{lvl}</span>
+              {lvl===userLevel && <span style={{fontSize:10,color:"#1e90ff",fontWeight:600}}>★ Your Level</span>}
+              {!isAccessible && <span style={{fontSize:10,color:"#b0c0d8"}}>🔒 Complete lower levels first</span>}
+            </div>
+            {topicsForLevel.map(topic=>(
+              <div key={topic.id} onClick={()=>startTopic(topic)}
+                style={{background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:10,border:`1.5px solid ${isAccessible?"#d0deff":"#e8f0ff"}`,cursor:isAccessible?"pointer":"not-allowed",opacity:isAccessible?1:0.6,display:"flex",alignItems:"center",gap:14,boxShadow:isAccessible?"0 2px 8px rgba(10,36,99,0.05)":"none"}}>
+                <span style={{fontSize:28,width:40,textAlign:"center"}}>{topic.icon}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:14,color:"#0a2463"}}>{topic.title}</div>
+                  <div style={{fontSize:11,color:"#6b7fa3",marginTop:2}}>{topic.desc} · {topic.cards.length} questions</div>
+                </div>
+                {isAccessible && <span style={{fontSize:20,color:"#d0deff"}}>→</span>}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ── RESULT ──
+  if (view === "result") return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      <div style={{textAlign:"center",marginBottom:24}}>
+        <div style={{fontSize:56,marginBottom:12}}>{score===shuffled.length?"🏆":score>=shuffled.length*0.7?"🎉":"💪"}</div>
+        <div style={{fontWeight:700,fontSize:24,color:"#0a2463",marginBottom:4}}>
+          {score}/{shuffled.length} correct
+        </div>
+        <div style={{fontSize:14,color:"#6b7fa3"}}>
+          {score===shuffled.length?"Perfect! Excellent work!":score>=shuffled.length*0.7?"Great job! Review the mistakes below.":"Keep practicing — you're getting there!"}
+        </div>
+      </div>
+
+      {/* Score ring */}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+        <svg width={100} height={100} viewBox="0 0 100 100">
+          <circle cx={50} cy={50} r={44} fill="none" stroke="#e8f0ff" strokeWidth={10}/>
+          <circle cx={50} cy={50} r={44} fill="none" stroke="#1e90ff" strokeWidth={10}
+            strokeDasharray={`${2*Math.PI*44*score/shuffled.length} ${2*Math.PI*44*(1-score/shuffled.length)}`}
+            strokeLinecap="round" transform="rotate(-90 50 50)"/>
+          <text x={50} y={55} textAnchor="middle" fontSize={20} fontWeight={700} fill="#0a2463">
+            {Math.round(score/shuffled.length*100)}%
+          </text>
+        </svg>
+      </div>
+
+      {/* Review wrong answers */}
+      {answers.filter(a=>!a.correct).length > 0 && (
+        <div style={{marginBottom:20}}>
+          <div style={{fontWeight:600,fontSize:13,color:"#0a2463",marginBottom:10}}>❌ Review — what you missed:</div>
+          {answers.filter(a=>!a.correct).map((a,i)=>(
+            <div key={i} style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:8,border:"1.5px solid #fecaca"}}>
+              <div style={{fontSize:12,color:"#6b7fa3",marginBottom:6}}>{a.q}</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <span style={{fontSize:12,padding:"3px 10px",borderRadius:8,background:"#fee2e2",color:"#dc2626"}}>You: {a.chosen}</span>
+                <span style={{fontSize:12,padding:"3px 10px",borderRadius:8,background:"#dcfce7",color:"#16a34a"}}>✓ {a.correctAns}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:10}}>
+        <button onClick={()=>setView("menu")} style={{flex:1,padding:13,borderRadius:12,background:"#fff",border:"1.5px solid #d0deff",color:"#0a2463",fontWeight:600,cursor:"pointer",fontSize:14}}>
+          ← All Topics
+        </button>
+        <button onClick={()=>startTopic(activeTopic)} style={{flex:1,padding:13,borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,cursor:"pointer",fontSize:14,border:"none"}}>
+          🔄 Retry
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── QUIZ ──
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <button onClick={()=>setView("menu")} style={{padding:"6px 14px",borderRadius:9,background:"#fff",border:"1.5px solid #d0deff",color:"#6b7fa3",fontWeight:600,cursor:"pointer",fontSize:12}}>← Topics</button>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#0a2463"}}>{activeTopic.icon} {activeTopic.title}</div>
+          <div style={{fontSize:11,color:"#6b7fa3"}}>{qIdx+1} of {shuffled.length}</div>
+        </div>
+        <div style={{fontSize:13,fontWeight:700,color:"#1e90ff"}}>⭐ {score}</div>
+      </div>
+
+      {/* Progress */}
+      <div style={{height:5,background:"#e8f0ff",borderRadius:4,marginBottom:20,overflow:"hidden"}}>
+        <div style={{height:"100%",background:"linear-gradient(90deg,#1e90ff,#0a6abf)",width:`${(qIdx/shuffled.length)*100}%`,transition:"width 0.3s"}}/>
+      </div>
+
+      {/* Question */}
+      <div style={{background:"#fff",borderRadius:16,padding:"22px 20px",marginBottom:16,border:"1.5px solid #d0deff",boxShadow:"0 3px 12px rgba(10,36,99,0.07)"}}>
+        <div style={{fontSize:10,fontWeight:600,color:"#6b7fa3",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Question {qIdx+1}</div>
+        <div style={{fontSize:16,fontWeight:600,color:"#0a2463",lineHeight:1.5}}>{current.q}</div>
+
+        {/* Hint */}
+        {!showHint && selected===null && (
+          <button onClick={()=>setShowHint(true)} style={{marginTop:12,padding:"5px 12px",borderRadius:8,background:"rgba(30,144,255,0.08)",border:"1px solid rgba(30,144,255,0.2)",color:"#1e90ff",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+            💡 Show hint
+          </button>
+        )}
+        {showHint && (
+          <div style={{marginTop:10,padding:"8px 12px",borderRadius:9,background:"rgba(201,168,76,0.12)",border:"1px solid rgba(201,168,76,0.3)",fontSize:12,color:"#7a6020",fontStyle:"italic"}}>
+            💡 {current.hint}
+          </div>
+        )}
+      </div>
+
+      {/* Options */}
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+        {current.opts.map((opt,i)=>{
+          const isSelected = selected===opt;
+          const isCorrect = opt===current.a;
+          let bg="#fff", border="1.5px solid #d0deff", color="#0a2463";
+          if (selected!==null) {
+            if (isCorrect) { bg="#dcfce7"; border="2px solid #22c55e"; color="#15803d"; }
+            else if (isSelected) { bg="#fee2e2"; border="2px solid #ef4444"; color="#dc2626"; }
+            else { bg="#f8fafc"; color="#94a3b8"; }
+          }
+          return (
+            <button key={i} onClick={()=>choose(opt)}
+              style={{padding:"14px 18px",borderRadius:12,background:bg,border,color,fontWeight:600,fontSize:14,cursor:selected!==null?"default":"pointer",textAlign:"left",transition:"all 0.15s",display:"flex",alignItems:"center",gap:10}}>
+              <span style={{width:26,height:26,borderRadius:"50%",background:selected!==null?(isCorrect?"#22c55e":isSelected?"#ef4444":"#e8f0ff"):"#e8f0ff",color:selected!==null?(isCorrect||isSelected?"#fff":"#6b7fa3"):"#6b7fa3",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>
+                {selected!==null?(isCorrect?"✓":isSelected?"✗":["A","B","C","D"][i]):["A","B","C","D"][i]}
+              </span>
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Feedback + Next */}
+      {selected!==null && (
+        <div>
+          <div style={{padding:"12px 16px",borderRadius:12,background:selected===current.a?"#dcfce7":"#fee2e2",border:`1.5px solid ${selected===current.a?"#86efac":"#fca5a5"}`,marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:13,color:selected===current.a?"#15803d":"#dc2626",marginBottom:2}}>
+              {selected===current.a?"✅ Correct!":"❌ Not quite"}
+            </div>
+            <div style={{fontSize:12,color:"#374151"}}>{current.hint}</div>
+          </div>
+          <button onClick={next} style={{width:"100%",padding:14,borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,fontSize:15,border:"none",cursor:"pointer"}}>
+            {qIdx+1>=shuffled.length?"See Results →":"Next Question →"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  ROLEPLAY SCENARIOS — AI-powered nursing conversation practice
+// ══════════════════════════════════════════════════════════════
+
+const ROLEPLAY_SCENARIOS = [
+  {
+    id: "pain",
+    title: "Patient in Pain",
+    icon: "🤕",
+    level: "A2",
+    desc: "Patient says they have severe pain. Ask where and since when.",
+    setup: "A patient in Bed 7 just pressed the call button. They look distressed.",
+    patientOpener: "Ich habe starke Schmerzen!",
+    patientOpenerEN: "I have severe pain!",
+    yourRole: "Nurse — ask where the pain is and how long they've had it",
+    aiChecks: ["Question form (Wo? / Seit wann?)", "Formal Sie address", "Medical vocabulary", "Empathy markers"],
+    levelHint: "Try: 'Wo haben Sie Schmerzen?' and 'Seit wann haben Sie diese Schmerzen?'"
+  },
+  {
+    id: "handover",
+    title: "Shift Handover",
+    icon: "📋",
+    level: "B1",
+    desc: "Summarise a patient's condition to the incoming nurse.",
+    setup: "End of your shift. The incoming nurse needs a handover for Patient Müller, 68M, post-op Day 2.",
+    patientOpener: "Kannst du mir bitte den Patienten Müller übergeben?",
+    patientOpenerEN: "Can you hand over patient Müller to me please?",
+    yourRole: "Outgoing nurse — summarise condition, vitals, and any concerns",
+    aiChecks: ["Past tense accuracy (Perfekt)", "Medical terminology", "Sentence structure", "Key info coverage"],
+    levelHint: "Structure: Name/Age → Diagnosis → Today's status → Vitals → Concerns → Medications"
+  },
+  {
+    id: "reassure",
+    title: "Anxious Patient",
+    icon: "🤝",
+    level: "A2",
+    desc: "A patient is confused and scared about their procedure. Reassure them calmly.",
+    setup: "Elderly patient Mrs. Bauer is sitting up in bed, visibly frightened about her scheduled scan.",
+    patientOpener: "Ich habe Angst. Was passiert mit mir? Niemand erklärt mir etwas!",
+    patientOpenerEN: "I'm scared. What is happening to me? Nobody explains anything to me!",
+    yourRole: "Nurse — reassure Mrs. Bauer, explain the scan simply, tell her you'll stay with her",
+    aiChecks: ["Empathy language (Ich verstehe…, Keine Sorge…)", "Simple clear explanations", "Avoiding overly clinical tone", "Softening language"],
+    levelHint: "Start with: 'Ich verstehe Ihre Sorge.' Then explain: 'Wir machen jetzt eine Untersuchung...'"
+  },
+  {
+    id: "medication",
+    title: "Medication Round",
+    icon: "💊",
+    level: "A1",
+    desc: "Explain the medication to the patient and check for allergies.",
+    setup: "It's 8am medication round. Patient Herr Schmidt needs his morning tablets.",
+    patientOpener: "Was sind das für Tabletten?",
+    patientOpenerEN: "What are these tablets?",
+    yourRole: "Nurse — explain what the tablets are for and ask about any allergies",
+    aiChecks: ["Medication vocabulary", "Simple present tense", "Question form for allergies", "Polite address"],
+    levelHint: "Say: 'Das ist [medication] für [purpose]. Haben Sie Allergien?'"
+  },
+  {
+    id: "admission",
+    title: "Patient Admission",
+    icon: "🏥",
+    level: "B1",
+    desc: "Take a medical history from a new patient during admission.",
+    setup: "New patient Frau Weber has arrived on the ward. You need to complete the admission paperwork.",
+    patientOpener: "Hallo, ich bin neu hier. Wo soll ich hin?",
+    patientOpenerEN: "Hello, I'm new here. Where should I go?",
+    yourRole: "Nurse — welcome her, ask about current symptoms, existing conditions, and current medications",
+    aiChecks: ["Anamnese questions", "Past tense for medical history", "Polite formal language", "Systematic approach"],
+    levelHint: "Ask: current complaints → Vorerkrankungen (pre-existing conditions) → Medikamente → Allergien"
+  },
+  {
+    id: "emergency",
+    title: "Emergency Call",
+    icon: "🚨",
+    level: "B2",
+    desc: "A patient's condition deteriorates suddenly. Call for the doctor urgently.",
+    setup: "Patient Herr Klein in Bed 4 has suddenly become unresponsive. Vitals are dropping.",
+    patientOpener: "[Alarmton — der Monitor piept laut]",
+    patientOpenerEN: "[Alarm — the monitor beeps loudly]",
+    yourRole: "Nurse — call for the doctor over the intercom and describe the emergency situation clearly",
+    aiChecks: ["Emergency vocabulary", "Clear urgency markers (Sofort! Notfall!)", "Vital signs description", "Calm but urgent tone"],
+    levelHint: "Use: 'Notfall auf Station [X]! Patient [Name], Bett [Nr.] — [symptoms]. Bitte sofort kommen!'"
+  },
+];
+
+function RoleplayPanel({ user }) {
+  const [view, setView] = useState("menu"); // menu | chat | feedback
+  const [scenario, setScenario] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages, typing]);
+
+  const levelOrder = ["A1","A2","B1","B2"];
+  const userLevel = user?.level || "A1";
+
+  function startScenario(sc) {
+    setScenario(sc);
+    setMessages([
+      { role:"assistant", content:`🎭 **${sc.title}**\n\n_${sc.setup}_\n\n---\n\n**${sc.patientOpener}**\n\n_"${sc.patientOpenerEN}"_` },
+    ]);
+    setFeedback(null);
+    setInput("");
+    setView("chat");
+  }
+
+  async function sendReply() {
+    if (!input.trim() || typing) return;
+    const userMsg = { role:"user", content: input.trim() };
+    const newMsgs = [...messages, userMsg];
+    setMessages(newMsgs);
+    setInput("");
+    setTyping(true);
+
+    const systemPrompt = `You are playing a patient/colleague in a German nursing roleplay scenario for an Indian nursing student learning German. 
+
+Scenario: "${scenario.title}" — ${scenario.setup}
+Student's role: ${scenario.yourRole}
+You play: the ${scenario.id === "handover" ? "incoming nurse" : "patient"}.
+
+Rules:
+1. Respond in German as the character — keep responses short (1-3 sentences).
+2. After 2-3 exchanges, if the student seems to have completed their objective, add a line break and write: "✅ SCENARIO COMPLETE — type 'feedback' to get your assessment."
+3. If the student writes in English, gently remind them: "_Bitte auf Deutsch antworten!_"
+4. Stay in character — be realistic, slightly challenging but not unkind.
+5. If the student makes a critical error (wrong verb form, wrong register), you can react naturally as the character would (look confused, ask for clarification).`;
+
+    const apiMsgs = newMsgs.map(m => ({role:m.role, content:m.content}));
+    const reply = await callClaude(apiMsgs, systemPrompt, 400);
+    setMessages([...newMsgs, {role:"assistant", content:reply}]);
+    setTyping(false);
+  }
+
+  async function getFeedback() {
+    setLoadingFeedback(true);
+    const studentTurns = messages.filter(m=>m.role==="user").map(m=>m.content).join("\n\n");
+    const fbPrompt = `You are a German language teacher assessing a nursing student's roleplay performance.
+
+Scenario: "${scenario.title}"
+Checks to assess: ${scenario.aiChecks.join(", ")}
+Student's responses:
+${studentTurns}
+
+Give structured feedback in this exact format:
+## Overall Assessment
+[1-2 sentences overall]
+
+## ✅ What you did well
+[2-3 specific positives with example from their text]
+
+## ✏️ Corrections
+[List each error with: WRONG → CORRECT → explanation. Max 4 corrections.]
+
+## 💡 Better phrases to use
+[2-3 example sentences they could have used]
+
+## Score
+Grammar: X/10 | Vocabulary: X/10 | Communication: X/10`;
+
+    const result = await callClaude([{role:"user",content:fbPrompt}], "You are an expert German teacher for nurses. Be specific, constructive, and encouraging.", 800);
+    setFeedback(result);
+    setLoadingFeedback(false);
+    setView("feedback");
+  }
+
+  function onKey(e) {
+    if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); }
+  }
+
+  // Render chat bubbles (reuse same markdown logic simplified)
+  function renderBubble(text) {
+    return text
+      .replace(/^## (.+)$/gm, "<div style='font-weight:700;font-size:14px;color:#0a2463;margin:10px 0 5px;border-bottom:1.5px solid #e8d5a3;padding-bottom:4px'>$1</div>")
+      .replace(/^### (.+)$/gm, "<div style='font-weight:600;font-size:13px;color:#0a2463;margin:8px 0 4px'>$1</div>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong style='color:#c9a84c'>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em style='color:#6b8f71;font-style:italic'>$1</em>")
+      .replace(/_([^_]+)_/g, "<em style='color:#6b8f71;font-style:italic'>$1</em>")
+      .replace(/^[-•] (.+)$/gm, "<div style='display:flex;gap:8px;margin:3px 0'><span style='color:#1e90ff'>•</span><span>$1</span></div>")
+      .replace(/^---+$/gm, "<hr style='border:none;border-top:1px solid #e8d5a3;margin:8px 0'/>")
+      .replace(/✅/g, "<span style='color:#22c55e'>✅</span>")
+      .replace(/✏️/g, "<span>✏️</span>")
+      .replace(/💡/g, "<span>💡</span>")
+      .replace(/\n\n/g, "<div style='margin-bottom:8px'></div>")
+      .replace(/\n/g, "<br/>");
+  }
+
+  // ── MENU ──
+  if (view === "menu") return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      <div style={{fontWeight:700,fontSize:22,color:"#0a2463",marginBottom:4}}>🎭 Roleplay Scenarios</div>
+      <div style={{fontSize:12,color:"#6b7fa3",marginBottom:20}}>Practice real nursing conversations in German — AI plays the patient or colleague, then gives you feedback on your language</div>
+
+      {levelOrder.map(lvl => {
+        const scsForLevel = ROLEPLAY_SCENARIOS.filter(s=>s.level===lvl);
+        if (!scsForLevel.length) return null;
+        const accessible = levelOrder.indexOf(lvl) <= levelOrder.indexOf(userLevel);
+        return (
+          <div key={lvl} style={{marginBottom:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <span style={{fontSize:12,fontWeight:700,padding:"3px 12px",borderRadius:12,background:accessible?"#0a246322":"#e8f0ff",color:accessible?"#0a2463":"#b0c0d8"}}>{lvl}</span>
+              {!accessible && <span style={{fontSize:10,color:"#b0c0d8"}}>🔒 Unlock by reaching this level</span>}
+            </div>
+            {scsForLevel.map(sc => (
+              <div key={sc.id} onClick={accessible?()=>startScenario(sc):undefined}
+                style={{background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:10,border:`1.5px solid ${accessible?"#d0deff":"#e8f0ff"}`,cursor:accessible?"pointer":"not-allowed",opacity:accessible?1:0.5,display:"flex",gap:14,alignItems:"flex-start"}}>
+                <span style={{fontSize:28,flexShrink:0}}>{sc.icon}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:14,color:"#0a2463",marginBottom:2}}>{sc.title}</div>
+                  <div style={{fontSize:12,color:"#6b7fa3",marginBottom:6}}>{sc.desc}</div>
+                  <div style={{fontSize:11,background:"#f0f4ff",borderRadius:7,padding:"4px 10px",display:"inline-block",color:"#0a2463"}}>
+                    Your role: {sc.yourRole}
+                  </div>
+                </div>
+                {accessible && <span style={{fontSize:18,color:"#d0deff",alignSelf:"center"}}>→</span>}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // ── FEEDBACK ──
+  if (view === "feedback") return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <button onClick={()=>setView("menu")} style={{padding:"6px 14px",borderRadius:9,background:"#fff",border:"1.5px solid #d0deff",color:"#6b7fa3",fontWeight:600,cursor:"pointer",fontSize:12}}>← Scenarios</button>
+        <div style={{fontWeight:700,fontSize:16,color:"#0a2463"}}>{scenario?.icon} Feedback</div>
+      </div>
+      <div style={{background:"#fff",borderRadius:16,padding:"20px 20px",border:"1px solid #d0deff",boxShadow:"0 2px 12px rgba(10,36,99,0.06)"}}>
+        <div dangerouslySetInnerHTML={{__html: renderBubble(feedback || "Loading...")}} style={{fontSize:13,color:"#0a2463",lineHeight:1.7}}/>
+      </div>
+      <div style={{display:"flex",gap:10,marginTop:16}}>
+        <button onClick={()=>setView("menu")} style={{flex:1,padding:13,borderRadius:12,background:"#fff",border:"1.5px solid #d0deff",color:"#0a2463",fontWeight:600,cursor:"pointer",fontSize:14}}>
+          ← All Scenarios
+        </button>
+        <button onClick={()=>startScenario(scenario)} style={{flex:1,padding:13,borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,cursor:"pointer",fontSize:14,border:"none"}}>
+          🔄 Try Again
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── CHAT ──
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{padding:"12px 18px",borderBottom:"1px solid #e8d5a3",background:"#fff",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontWeight:700,fontSize:14,color:"#0a2463"}}>{scenario?.icon} {scenario?.title}</div>
+          <div style={{fontSize:11,color:"#6b7fa3",marginTop:1}}>{scenario?.yourRole}</div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setView("menu")} style={{padding:"5px 12px",borderRadius:8,background:"#fff",border:"1.5px solid #d0deff",color:"#6b7fa3",fontWeight:600,cursor:"pointer",fontSize:11}}>← Exit</button>
+          <button onClick={getFeedback} disabled={loadingFeedback || messages.filter(m=>m.role==="user").length<1}
+            style={{padding:"5px 12px",borderRadius:8,background:"#0a2463",color:"#1e90ff",fontWeight:700,cursor:"pointer",fontSize:11,border:"none",opacity:messages.filter(m=>m.role==="user").length<1?0.4:1}}>
+            {loadingFeedback?"Analysing…":"📝 Get Feedback"}
+          </button>
+        </div>
+      </div>
+
+      {/* Hint bar */}
+      <div style={{padding:"8px 16px",background:"rgba(201,168,76,0.08)",borderBottom:"1px solid rgba(201,168,76,0.2)",fontSize:11,color:"#7a6020"}}>
+        💡 {scenario?.levelHint}
+      </div>
+
+      {/* Messages */}
+      <div style={{flex:1,overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:10,background:"#f0f4ff",minHeight:0}}>
+        {messages.map((msg,i)=>(
+          <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",flexDirection:msg.role==="user"?"row-reverse":"row"}}>
+            <div style={{width:28,height:28,borderRadius:8,background:msg.role==="user"?"#1e90ff":"#0a2463",color:msg.role==="user"?"#0a2463":"#1e90ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>
+              {msg.role==="user"?"👩":"🎭"}
+            </div>
+            <div style={{maxWidth:"72%",padding:"10px 14px",borderRadius:14,borderTopLeftRadius:msg.role==="user"?14:4,borderTopRightRadius:msg.role==="user"?4:14,background:msg.role==="user"?"#0a2463":"#fff",color:msg.role==="user"?"#d0deff":"#0a2463",border:msg.role==="user"?"none":"1px solid #e8d5a3",fontSize:13,lineHeight:1.65}}
+              dangerouslySetInnerHTML={{__html:renderBubble(msg.content)}}/>
+          </div>
+        ))}
+        {typing && (
+          <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+            <div style={{width:28,height:28,borderRadius:8,background:"#0a2463",color:"#1e90ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11}}>🎭</div>
+            <div style={{padding:"10px 14px",background:"#fff",border:"1px solid #e8d5a3",borderRadius:14,borderTopLeftRadius:4}}>
+              <div style={{display:"flex",gap:4}}>{[0,0.2,0.4].map((d,i)=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:"#6b7fa3",animation:`bounce 1.2s ${d}s infinite`}}/>)}</div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef}/>
+      </div>
+
+      {/* Input */}
+      <div style={{padding:"10px 14px",borderTop:"1px solid #e8d5a3",background:"#fff",display:"flex",gap:8,alignItems:"flex-end"}}>
+        <textarea style={{flex:1,padding:"9px 12px",borderRadius:10,border:"1.5px solid #e8d5a3",background:"#f0f4ff",fontSize:13,color:"#0a2463",resize:"none",outline:"none",fontFamily:"inherit",lineHeight:1.5,maxHeight:80}}
+          placeholder="Antworten Sie auf Deutsch… (Enter to send)"
+          value={input} onChange={e=>setInput(e.target.value)} onKeyDown={onKey} rows={1}/>
+        <button onClick={sendReply} disabled={!input.trim()||typing}
+          style={{width:38,height:38,borderRadius:9,background:"#0a2463",color:"#1e90ff",border:"none",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,opacity:!input.trim()||typing?0.4:1}}>→</button>
+      </div>
+    </div>
+  );
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  HOSPITAL DOCUMENTS — Rezept, Pflegebericht, Dienstübergabe
+// ══════════════════════════════════════════════════════════════
+
+const HOSPITAL_DOCS = [
+  {
+    id: "rezept",
+    title: "Rezept (Prescription)",
+    icon: "💊",
+    desc: "Read and understand German prescriptions",
+    color: "#0a2463",
+    sections: [
+      {
+        heading: "What is a Rezept?",
+        content: "A **Rezept** (prescription) is issued by a doctor (**Arzt/Ärztin**) and allows a patient to receive medication from a pharmacy (**Apotheke**). In Germany there are two main types:\n- **Kassenrezept** (green) — for statutory health insurance patients (GKV)\n- **Privatrezept** (pink/blue) — for private patients (PKV)"
+      },
+      {
+        heading: "Key Fields on a Rezept",
+        content: "| German Field | English Meaning | Example |\n|---|---|---|\n| **Patient** | Patient name & DOB | Müller, Hans, 12.03.1955 |\n| **Krankenkasse** | Health insurance | AOK Bayern |\n| **Versichertennr.** | Insurance number | 123456789 |\n| **Ausstellungsdatum** | Date of issue | 20.03.2026 |\n| **Arztnummer** | Doctor's registration no. | A123456789 |\n| **Praxisstempel** | Practice stamp | Dr. Schneider, Hauptstr. 1 |\n| **Signatur / Unterschrift** | Doctor's signature | (handwritten) |"
+      },
+      {
+        heading: "Common Abbreviations",
+        content: "| Abbrev. | Full Form | Meaning |\n|---|---|---|\n| **1-0-1** | morgens-mittags-abends | 1 morning, 0 midday, 1 evening |\n| **n.B.** | nach Bedarf | as needed |\n| **z.N.** | zur Nacht | at bedtime |\n| **p.o.** | per os | by mouth (oral) |\n| **i.v.** | intravenös | intravenous |\n| **s.c.** | subkutan | subcutaneous |\n| **Tbl.** | Tablette | tablet |\n| **Kps.** | Kapsel | capsule |\n| **Amp.** | Ampulle | ampoule |\n| **Tr.** | Tropfen | drops |"
+      },
+      {
+        heading: "Reading the Dosage Line",
+        content: "The dosage is written as three numbers separated by dashes:\n\n> **1 - 0 - 1** = 1 tablet in the morning, 0 at midday, 1 in the evening\n\n> **1 - 1 - 1** = 1 tablet three times daily\n\n> **½ - 0 - ½** = half a tablet morning and evening\n\nSometimes written as: **2x täglich 1 Tablette** = 1 tablet twice daily"
+      },
+      {
+        heading: "Your Role as a Nurse",
+        content: "- Read the Rezept carefully before administering medication\n- Check: **patient name**, **dose**, **route** (p.o., i.v., s.c.), **frequency**\n- Note the **Haltbarkeitsdatum** (expiry date)\n- Document in the **Pflegebericht** what was given and when\n- If unclear, ask the doctor — **never guess a dosage**\n\n💡 Common phrase: _'Ich habe dem Patienten seine Medikamente gemäß Rezept gegeben.'_\n(I gave the patient his medications according to the prescription.)"
+      }
+    ],
+    quiz: [
+      { q: "'1-0-1' on a prescription means:", opts: ["Once daily","Twice daily: morning and evening","Three times daily","Every hour"], ans: "Twice daily: morning and evening" },
+      { q: "What colour is a Kassenrezept (GKV prescription)?", opts: ["Pink","Blue","Green","White"], ans: "Green" },
+      { q: "'n.B.' on a prescription means:", opts: ["at bedtime","by mouth","as needed","for 3 days"], ans: "as needed" },
+      { q: "'Kps.' is the abbreviation for:", opts: ["tablet","capsule","drops","ampoule"], ans: "capsule" },
+    ]
+  },
+  {
+    id: "pflegebericht",
+    title: "Pflegebericht (Nursing Notes)",
+    icon: "📝",
+    desc: "Write and read patient nursing documentation",
+    color: "#1d4ed8",
+    sections: [
+      {
+        heading: "What is a Pflegebericht?",
+        content: "The **Pflegebericht** (nursing report/notes) is a written record of everything relevant to a patient's care during a shift. It is part of the **Pflegedokumentation** (nursing documentation) and is legally required in German hospitals.\n\nKey principle: **'Wer schreibt, der bleibt'** — 'What is written, stays.' If you didn't document it, legally it didn't happen."
+      },
+      {
+        heading: "Standard Structure (SOAP format)",
+        content: "| Section | German | What goes here |\n|---|---|---|\n| **S** | Subjektiv | What the patient says/feels: _'Patient klagt über...'_ |\n| **O** | Objektiv | What you observe: vital signs, wound status |\n| **A** | Assessment | Your nursing assessment |\n| **P** | Planung | Care plan actions taken or planned |\n\nMany wards use simpler narrative notes — but structure your entries the same way."
+      },
+      {
+        heading: "Key Phrases for Writing Notes",
+        content: "| Situation | German Phrase |\n|---|---|\n| Patient is in pain | _Patient klagt über starke Schmerzen (NRS 7/10) im linken Bein._ |\n| Vital signs measured | _Vitalzeichen gemessen: RR 120/80, Puls 78/min, Temp. 37,2°C, SpO2 98%._ |\n| Medication given | _Ibuprofen 400mg p.o. um 14:00 Uhr verabreicht._ |\n| Patient slept well | _Patient hat gut geschlafen, keine Auffälligkeiten in der Nacht._ |\n| Wound checked | _Wundkontrolle durchgeführt — Wunde trocken, kein Anhalt für Infektion._ |\n| Patient fell | _Patient ist um 06:30 Uhr gestürzt. Keine Verletzungen festgestellt. Arzt informiert._ |\n| Patient discharged | _Patient wurde am 20.03.2026 um 10:00 Uhr entlassen. Entlassungsbrief übergeben._ |"
+      },
+      {
+        heading: "Time & Date Format",
+        content: "German documentation uses the **24-hour clock** and **DD.MM.YYYY** date format:\n\n> _20.03.2026, 14:30 Uhr_ — 20 March 2026, 2:30pm\n\n> _Nachtschicht (22:00–06:00)_ — Night shift\n\n> _Frühschicht (06:00–14:00)_ — Early shift\n\n> _Spätschicht (14:00–22:00)_ — Late shift"
+      },
+      {
+        heading: "Important Documentation Rules",
+        content: "- Write in **black or blue ink** only (no pencil, no correction fluid)\n- Date, time, and **signature** on every entry\n- Use **full sentences** where possible\n- Abbreviations must be **standardised** (check your ward's list)\n- If you make an error: **draw a single line through** the mistake, write your initials — never scribble out\n- **Every action you take for a patient must be documented**"
+      }
+    ],
+    quiz: [
+      { q: "What does 'S' stand for in SOAP documentation?", opts: ["Standard","Subjektiv (what patient reports)","Schwester (nurse)","Stationär (inpatient)"], ans: "Subjektiv (what patient reports)" },
+      { q: "How do you correct a mistake in paper nursing notes?", opts: ["Use correction fluid","Scribble out completely","Draw one line through it and initial","Tear out the page"], ans: "Draw one line through it and initial" },
+      { q: "'NRS 7/10' in a nursing note refers to:", opts: ["Blood pressure","Pain scale rating","Heart rate","Oxygen saturation"], ans: "Pain scale rating" },
+      { q: "Which date format is used in German hospital documentation?", opts: ["03/20/2026","2026-03-20","20.03.2026","March 20, 2026"], ans: "20.03.2026" },
+    ]
+  },
+  {
+    id: "uebergabe",
+    title: "Dienstübergabe (Shift Handover)",
+    icon: "🔄",
+    desc: "Master verbal and written shift handovers",
+    color: "#065f46",
+    sections: [
+      {
+        heading: "Why Handovers Matter",
+        content: "The **Dienstübergabe** (shift handover) is the most critical moment for patient safety in a German ward. It's when the outgoing nurse communicates all essential patient information to the incoming nurse.\n\nStudies show that most nursing errors occur within 2 hours of a poor handover. German wards are strict about structure and completeness."
+      },
+      {
+        heading: "The SBAR Structure",
+        content: "Most German hospitals use **SBAR** for handovers:\n\n| Letter | German | What to say |\n|---|---|---|\n| **S** | Situation | Who is the patient, what is happening now? |\n| **B** | Background | Diagnosis, admission reason, history |\n| **A** | Assessment | Current status, your concerns |\n| **R** | Recommendation | What needs to happen next |\n\n> _'Herr Müller, 72 Jahre, Bett 14. Aufnahme gestern wegen Pneumonie. Fieber heute auf 38,9°C gestiegen. Ich empfehle, den Arzt zu benachrichtigen.'_"
+      },
+      {
+        heading: "Standard Handover Phrases",
+        content: "| Moment | German Phrase |\n|---|---|\n| Opening | _'Ich übergebe jetzt Station 3, Frühschicht.'_ |\n| Patient intro | _'Bett 7: Frau Schmidt, 65 Jahre, post-op Tag 2 nach Hüft-OP.'_ |\n| Current status | _'Der Patient ist stabil. Keine besonderen Vorkommnisse.'_ |\n| Concern | _'Ich mache mir Sorgen um Herrn Klein — sein Blutdruck ist heute Abend gefallen.'_ |\n| Medication | _'Die Antibiotika-Infusion läuft noch bis 22:00 Uhr.'_ |\n| Pending tasks | _'Das Blutbild steht noch aus — Ergebnis bitte kontrollieren.'_ |\n| Handover complete | _'Das war die Übergabe. Haben Sie noch Fragen?'_ |"
+      },
+      {
+        heading: "Common Abbreviations in Handover",
+        content: "| German | Meaning |\n|---|---|\n| **p.o. tag** | post-operative day |\n| **RR** | Blutdruck (blood pressure) |\n| **HF / Puls** | heart rate / pulse |\n| **Temp.** | temperature |\n| **SpO2** | oxygen saturation |\n| **i.v.** | intravenous |\n| **AZ** | Allgemeinzustand (general condition) |\n| **EK** | Erythrozytenkonzentrat (packed red blood cells) |\n| **DK** | Dauerkatheter (urinary catheter) |\n| **ZVK** | Zentralvenenkatheter (central venous catheter) |"
+      },
+      {
+        heading: "Tips for New Nurses in Germany",
+        content: "- Always speak **clearly and slowly** — German colleagues may have regional accents\n- Use the **SBAR structure** every time until it becomes automatic\n- If you don't understand something: _'Könnten Sie das bitte wiederholen?'_ (Could you repeat that?)\n- Write key points down — don't rely on memory during your first months\n- Ask: _'Gibt es sonst noch etwas, das ich wissen sollte?'_ (Is there anything else I should know?)\n\n💡 **Most stressful moment for foreign nurses:** The handover. Practice it daily with Luca in the Roleplay tab!"
+      }
+    ],
+    quiz: [
+      { q: "What does 'B' stand for in SBAR handover?", opts: ["Bericht (report)","Background (Hintergrund)","Befund (finding)","Behandlung (treatment)"], ans: "Background (Hintergrund)" },
+      { q: "'AZ' in a handover note means:", opts: ["Allgemeinzustand (general condition)","Arzt zuständig (responsible doctor)","Ausgang zugelassen (allowed to go out)","Aufnahme Zeit (admission time)"], ans: "Allgemeinzustand (general condition)" },
+      { q: "What is a 'DK' in nursing documentation?", opts: ["Diabetes Kontrolle","Dauerkatheter (urinary catheter)","Dokumentation Karte","Dienst Koordination"], ans: "Dauerkatheter (urinary catheter)" },
+      { q: "How do you ask a colleague to repeat something?", opts: ["Sprechen Sie lauter!","Ich verstehe Sie nicht.","Könnten Sie das bitte wiederholen?","Was meinen Sie?"], ans: "Könnten Sie das bitte wiederholen?" },
+    ]
+  }
+];
+
+function HospitalDocsPanel({ user }) {
+  const [view, setView] = useState("menu"); // menu | doc | quiz | result
+  const [activeDoc, setActiveDoc] = useState(null);
+  const [activeSection, setActiveSection] = useState(0);
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [quizRevealed, setQuizRevealed] = useState({});
+  const [quizDone, setQuizDone] = useState(false);
+
+  function openDoc(doc) { setActiveDoc(doc); setActiveSection(0); setView("doc"); }
+  function startQuiz() { setQuizAnswers({}); setQuizRevealed({}); setQuizDone(false); setView("quiz"); }
+  function answer(qi, opt) {
+    if (quizRevealed[qi]) return;
+    setQuizAnswers(a => ({...a, [qi]: opt}));
+    setQuizRevealed(r => ({...r, [qi]: true}));
+  }
+  function finishQuiz() { setQuizDone(true); setView("result"); }
+
+  // Render markdown-ish content
+  function renderContent(text) {
+    return text
+      .replace(/\*\*([^*]+)\*\*/g, "<strong style='color:#0a2463'>$1</strong>")
+      .replace(/_([^_]+)_/g, "<em style='color:#1d4ed8;font-style:italic'>$1</em>")
+      .replace(/^> (.+)$/gm, "<div style='border-left:3px solid #1e90ff;padding:6px 12px;margin:6px 0;background:#f0f7ff;border-radius:0 8px 8px 0;font-family:monospace;font-size:12px;color:#0a2463'>$1</div>")
+      .replace(/^\| (.+) \|$/gm, (_, row) => {
+        const cells = row.split(" | ");
+        const isDivider = cells.every(c => /^[-:]+$/.test(c.trim()));
+        if (isDivider) return "";
+        return `<div style='display:flex;border-bottom:1px solid #e8f0ff'>${cells.map((c,i) => `<div style='flex:1;padding:6px 8px;font-size:12px;${i===0?"font-weight:600;color:#0a2463":"color:#333"}'>${c}</div>`).join("")}</div>`;
+      })
+      .replace(/\n\n/g, "<div style='margin-bottom:10px'></div>")
+      .replace(/^[-•] (.+)$/gm, "<div style='display:flex;gap:8px;margin:4px 0'><span style='color:#1e90ff'>•</span><span style='font-size:13px'>$1</span></div>")
+      .replace(/\n/g, "<br/>");
+  }
+
+  if (view === "menu") return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      <div style={{fontWeight:700,fontSize:22,color:"#0a2463",marginBottom:4}}>🏥 Hospital Documents</div>
+      <div style={{fontSize:12,color:"#6b7fa3",marginBottom:20}}>Learn to read and write the three key documents every nurse uses from Day 1 in a German ward</div>
+      {HOSPITAL_DOCS.map(doc => (
+        <div key={doc.id} onClick={() => openDoc(doc)}
+          style={{background:"#fff",borderRadius:16,padding:"20px 20px",marginBottom:14,border:`1.5px solid #d0deff`,cursor:"pointer",display:"flex",gap:16,alignItems:"flex-start",boxShadow:"0 2px 8px rgba(10,36,99,0.06)"}}>
+          <span style={{fontSize:32,flexShrink:0}}>{doc.icon}</span>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:16,color:"#0a2463",marginBottom:4}}>{doc.title}</div>
+            <div style={{fontSize:12,color:"#6b7fa3",marginBottom:8}}>{doc.desc}</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <span style={{fontSize:11,background:"#f0f4ff",color:"#0a2463",padding:"3px 10px",borderRadius:8,fontWeight:600}}>{doc.sections.length} sections</span>
+              <span style={{fontSize:11,background:"#f0f4ff",color:"#0a2463",padding:"3px 10px",borderRadius:8,fontWeight:600}}>{doc.quiz.length} quiz questions</span>
+            </div>
+          </div>
+          <span style={{fontSize:20,color:"#d0deff",alignSelf:"center"}}>→</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (view === "result") {
+    const score = activeDoc.quiz.filter((q,i) => quizAnswers[i] === q.ans).length;
+    return (
+      <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{fontSize:48,marginBottom:10}}>{score===activeDoc.quiz.length?"🏆":"📝"}</div>
+          <div style={{fontWeight:700,fontSize:22,color:"#0a2463"}}>{score}/{activeDoc.quiz.length} correct</div>
+          <div style={{fontSize:13,color:"#6b7fa3",marginTop:4}}>{score===activeDoc.quiz.length?"Perfect! You know this document well.":"Review the sections and try again!"}</div>
+        </div>
+        {activeDoc.quiz.map((q,i)=>(
+          <div key={i} style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:10,border:`1.5px solid ${quizAnswers[i]===q.ans?"#86efac":"#fca5a5"}`}}>
+            <div style={{fontSize:12,color:"#6b7fa3",marginBottom:6}}>{q.q}</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {quizAnswers[i]!==q.ans && <span style={{fontSize:12,padding:"3px 10px",borderRadius:8,background:"#fee2e2",color:"#dc2626"}}>You: {quizAnswers[i]||"(timed out)"}</span>}
+              <span style={{fontSize:12,padding:"3px 10px",borderRadius:8,background:"#dcfce7",color:"#16a34a"}}>✓ {q.ans}</span>
+            </div>
+          </div>
+        ))}
+        <div style={{display:"flex",gap:10,marginTop:16}}>
+          <button onClick={()=>setView("menu")} style={{flex:1,padding:13,borderRadius:12,background:"#fff",border:"1.5px solid #d0deff",color:"#0a2463",fontWeight:600,cursor:"pointer"}}>← All Documents</button>
+          <button onClick={()=>openDoc(activeDoc)} style={{flex:1,padding:13,borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,cursor:"pointer",border:"none"}}>📖 Review Sections</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "quiz") {
+    const allAnswered = activeDoc.quiz.every((_,i) => quizRevealed[i]);
+    return (
+      <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <button onClick={()=>setView("doc")} style={{padding:"6px 14px",borderRadius:9,background:"#fff",border:"1.5px solid #d0deff",color:"#6b7fa3",fontWeight:600,cursor:"pointer",fontSize:12}}>← Back</button>
+          <div style={{fontWeight:700,fontSize:16,color:"#0a2463"}}>{activeDoc.icon} Quiz</div>
+        </div>
+        {activeDoc.quiz.map((q,qi)=>{
+          const selected = quizAnswers[qi];
+          const revealed = quizRevealed[qi];
+          return (
+            <div key={qi} style={{background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:14,border:"1.5px solid #d0deff"}}>
+              <div style={{fontWeight:600,fontSize:13,color:"#0a2463",marginBottom:12}}>{qi+1}. {q.q}</div>
+              {q.opts.map((opt,oi)=>{
+                const isSelected = selected===opt;
+                const isCorrect = opt===q.ans;
+                let bg="#f8fafc",border="1.5px solid #e8f0ff",color="#0a2463";
+                if (revealed) {
+                  if (isCorrect) {bg="#dcfce7";border="2px solid #22c55e";color="#15803d";}
+                  else if (isSelected) {bg="#fee2e2";border="2px solid #ef4444";color="#dc2626";}
+                }
+                return (
+                  <button key={oi} onClick={()=>answer(qi,opt)}
+                    style={{width:"100%",padding:"10px 14px",borderRadius:10,background:bg,border,color,fontWeight:500,fontSize:13,cursor:revealed?"default":"pointer",textAlign:"left",marginBottom:6}}>
+                    {opt}
+                    {revealed && isCorrect && " ✓"}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+        {allAnswered && (
+          <button onClick={finishQuiz} style={{width:"100%",padding:14,borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,fontSize:15,border:"none",cursor:"pointer",marginTop:8}}>
+            See Results →
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // DOC VIEW
+  const section = activeDoc.sections[activeSection];
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{padding:"12px 18px",borderBottom:"1px solid #e8d5a3",background:"#fff",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={()=>setView("menu")} style={{padding:"5px 12px",borderRadius:8,background:"#fff",border:"1.5px solid #d0deff",color:"#6b7fa3",fontWeight:600,cursor:"pointer",fontSize:11}}>← Docs</button>
+          <div style={{fontWeight:700,fontSize:14,color:"#0a2463"}}>{activeDoc.icon} {activeDoc.title}</div>
+        </div>
+        <button onClick={startQuiz} style={{padding:"6px 14px",borderRadius:9,background:"#0a2463",color:"#1e90ff",fontWeight:700,fontSize:12,border:"none",cursor:"pointer"}}>📝 Take Quiz</button>
+      </div>
+      {/* Section tabs */}
+      <div style={{display:"flex",gap:6,padding:"10px 16px",overflowX:"auto",background:"#f8faff",borderBottom:"1px solid #e8f0ff",flexShrink:0}}>
+        {activeDoc.sections.map((s,i)=>(
+          <button key={i} onClick={()=>setActiveSection(i)}
+            style={{padding:"5px 12px",borderRadius:20,fontSize:11,fontWeight:600,border:`1.5px solid ${activeSection===i?"#0a2463":"#d0deff"}`,cursor:"pointer",background:activeSection===i?"#0a2463":"#fff",color:activeSection===i?"#1e90ff":"#6b7fa3",whiteSpace:"nowrap",flexShrink:0}}>
+            {i+1}. {s.heading.split(" ")[0]}…
+          </button>
+        ))}
+      </div>
+      {/* Content */}
+      <div style={{flex:1,overflowY:"auto",padding:"20px 20px",background:"#fff"}}>
+        <div style={{fontWeight:700,fontSize:16,color:"#0a2463",marginBottom:14,borderBottom:"2px solid #e8f0ff",paddingBottom:10}}>{section.heading}</div>
+        <div style={{fontSize:13,color:"#1a1a2e",lineHeight:1.8}} dangerouslySetInnerHTML={{__html:renderContent(section.content)}}/>
+        {/* overflow if table content has pipes, wrap in scrollable div */}
+        <div style={{height:20}}/>
+      </div>
+      {/* Nav */}
+      <div style={{padding:"10px 16px",borderTop:"1px solid #e8d5a3",background:"#fff",display:"flex",gap:10}}>
+        <button disabled={activeSection===0} onClick={()=>setActiveSection(s=>s-1)}
+          style={{flex:1,padding:10,borderRadius:10,background:"#fff",border:"1.5px solid #d0deff",color:activeSection===0?"#c4c4c4":"#0a2463",fontWeight:600,cursor:activeSection===0?"not-allowed":"pointer",fontSize:13}}>← Previous</button>
+        {activeSection<activeDoc.sections.length-1
+          ? <button onClick={()=>setActiveSection(s=>s+1)} style={{flex:1,padding:10,borderRadius:10,background:"#0a2463",color:"#1e90ff",fontWeight:700,cursor:"pointer",border:"none",fontSize:13}}>Next →</button>
+          : <button onClick={startQuiz} style={{flex:1,padding:10,borderRadius:10,background:"#6b8f71",color:"#fff",fontWeight:700,cursor:"pointer",border:"none",fontSize:13}}>📝 Take Quiz →</button>
+        }
+      </div>
+    </div>
+  );
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  EXAM PREP — B1/B2 Goethe Exam Preparation
+// ══════════════════════════════════════════════════════════════
+
+const EXAM_STRUCTURE = {
+  B1: {
+    name: "Goethe-Zertifikat B1",
+    totalTime: "165 minutes",
+    parts: [
+      { skill: "Lesen", label: "Reading", time: "65 min", parts: 5, desc: "5 tasks — notices, emails, articles, forms, matching" },
+      { skill: "Hören", label: "Listening", time: "40 min", parts: 4, desc: "4 tasks — conversations, announcements, interviews, radio" },
+      { skill: "Schreiben", label: "Writing", time: "60 min", parts: 2, desc: "2 tasks — short message + guided letter/email" },
+      { skill: "Sprechen", label: "Speaking", time: "15 min", parts: 3, desc: "3 tasks — introduction, shared planning, picture description" },
+    ],
+    passMark: "60% overall, min 45% per skill",
+    tips: [
+      "Read ALL the questions before the text in Lesen tasks",
+      "In Hören, the audio plays TWICE — take notes on the first listen",
+      "Schreiben: always write a greeting and closing in letters",
+      "Sprechen: use connectors like 'außerdem', 'jedoch', 'meiner Meinung nach'",
+      "B1 tests everyday German — hospital phrases are perfect preparation"
+    ]
+  },
+  B2: {
+    name: "Goethe-Zertifikat B2",
+    totalTime: "190 minutes",
+    parts: [
+      { skill: "Lesen", label: "Reading", time: "75 min", parts: 4, desc: "4 tasks — complex texts, matching headings, fill-in-blank, true/false" },
+      { skill: "Hören", label: "Listening", time: "40 min", parts: 3, desc: "3 tasks — interviews, discussions, radio reports" },
+      { skill: "Schreiben", label: "Writing", time: "75 min", parts: 2, desc: "2 tasks — opinion essay + formal letter/email" },
+      { skill: "Sprechen", label: "Speaking", time: "15 min", parts: 2, desc: "2 tasks — topic presentation + discussion/negotiation" },
+    ],
+    passMark: "60% overall, min 45% per skill",
+    tips: [
+      "B2 texts are complex — look for logical connectors to understand structure",
+      "Hören at B2 includes academic-style language — get used to podcasts and lectures",
+      "Schreiben: structure your essay — Einleitung (intro), Hauptteil (body), Schluss (conclusion)",
+      "Sprechen: use Konjunktiv II for polite suggestions — 'Man könnte...', 'Es wäre sinnvoll...'",
+      "For nurses: B2 is required for the Berufsanerkennung in most German states"
+    ]
+  }
+};
+
+const MOCK_QUESTIONS = {
+  B1: [
+    { skill:"Lesen", q:"'Die Patientin ist auf nüchternen Magen zur Untersuchung erschienen.' What does this mean?", opts:["The patient came without an appointment","The patient arrived without eating or drinking","The patient was very tired","The patient came for the first time"], ans:"The patient arrived without eating or drinking", time:90 },
+    { skill:"Lesen", q:"In a hospital notice: 'Besucher werden gebeten, die Hände zu desinfizieren.' What are visitors asked to do?", opts:["Register at reception","Wash their hands with soap","Disinfect their hands","Wear a face mask"], ans:"Disinfect their hands", time:60 },
+    { skill:"Hören", q:"A nurse says: 'Der Patient in Zimmer 7 hat heute Nacht kaum geschlafen und klagt über Kopfschmerzen.' What is the problem?", opts:["The patient ate very little","The patient slept poorly and has a headache","The patient has a high fever","The patient wants to leave the hospital"], ans:"The patient slept poorly and has a headache", time:90 },
+    { skill:"Hören", q:"Doctor in a handover: 'Frau Bauer wurde heute entlassen — der Entlassungsbrief wurde dem Hausarzt gefaxt.' What happened?", opts:["Mrs Bauer is being admitted","Mrs Bauer was discharged and the GP was faxed","Mrs Bauer needs an operation","Mrs Bauer complained about the care"], ans:"Mrs Bauer was discharged and the GP was faxed", time:90 },
+    { skill:"Schreiben", q:"You need to write a handover note. Which sentence is grammatically correct?", opts:["Patient hat gut geschlafen und keine Schmerzen gehabt.","Patient hat gut geschlafen und keine Schmerzen haben.","Der Patient guten schlafen und Schmerzen keine hatten.","Patient schlaft gut und keine Schmerzen hat."], ans:"Patient hat gut geschlafen und keine Schmerzen gehabt.", time:120 },
+    { skill:"Sprechen", q:"How would you introduce yourself to a new patient in formal German?", opts:["Ich bin hier. Was willst du?","Guten Tag, mein Name ist [Name], ich bin Ihre Pflegefachkraft für heute.","Hey, ich bin die Krankenschwester.","Hallo! Was haben Sie?"], ans:"Guten Tag, mein Name ist [Name], ich bin Ihre Pflegefachkraft für heute.", time:60 },
+  ],
+  B2: [
+    { skill:"Lesen", q:"Text: 'Die interprofessionelle Zusammenarbeit im Krankenhaus verbessert nachweislich die Patientensicherheit.' The text claims:", opts:["Doctors should work alone","Working across professions improves patient safety","Nurses are more important than doctors","Patient safety is declining"], ans:"Working across professions improves patient safety", time:90 },
+    { skill:"Lesen", q:"'Trotz umfangreicher Dokumentationspflichten bleibt die direkte Patientenversorgung die Kernaufgabe der Pflege.' This means:", opts:["Documentation is the most important nursing task","Despite heavy documentation requirements, direct patient care remains central","Nurses spend too much time with patients","Documentation should be reduced"], ans:"Despite heavy documentation requirements, direct patient care remains central", time:120 },
+    { skill:"Hören", q:"In a team meeting, a nurse says: 'Meiner Meinung nach sollten wir die Übergabezeiten verlängern, um Fehler zu vermeiden.' What is her suggestion?", opts:["Reduce handover times","Increase handover times to prevent errors","Cancel handovers entirely","Write handovers digitally"], ans:"Increase handover times to prevent errors", time:90 },
+    { skill:"Schreiben", q:"Which sentence uses Konjunktiv II correctly for a formal suggestion?", opts:["Es ist besser, wenn wir das ändern.","Es wäre sinnvoll, die Protokolle zu überarbeiten.","Wir sollen die Protokolle überarbeiten müssen.","Man hat die Protokolle überarbeiten sollen."], ans:"Es wäre sinnvoll, die Protokolle zu überarbeiten.", time:120 },
+    { skill:"Sprechen", q:"You're presenting to colleagues. What is the best opening for a B2 presentation?", opts:["Also, ich finde das wichtig.","Heute möchte ich über die Bedeutung der Bezugspflege sprechen.","Ich weiß nicht genau, aber...","Das Thema ist kompliziert."], ans:"Heute möchte ich über die Bedeutung der Bezugspflege sprechen.", time:90 },
+    { skill:"Lesen", q:"'Die Patientenverfügung legt fest, welche medizinischen Maßnahmen im Falle der Einwilligungsunfähigkeit gewünscht werden.' This document:", opts:["Records medication history","States the patient's wishes if they cannot consent","Authorises a nurse to make decisions","Discharges the patient"], ans:"States the patient's wishes if they cannot consent", time:120 },
+  ]
+};
+
+function ExamPrepPanel({ user }) {
+  const [view, setView] = useState("menu"); // menu | pattern | mock | result
+  const [activeLevel, setActiveLevel] = useState(user?.level==="B2"?"B2":"B1");
+  const [mockQs, setMockQs] = useState([]);
+  const [qi, setQi] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [revealed, setRevealed] = useState({});
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (view !== "mock" || !mockQs[qi]) return;
+    clearInterval(timerRef.current);
+    const t = mockQs[qi].time || 90;
+    setTimeLeft(t);
+    setTimedOut(false);
+    timerRef.current = setInterval(()=>{
+      setTimeLeft(s=>{
+        if (s<=1) { clearInterval(timerRef.current); setTimedOut(true); setRevealed(r=>({...r,[qi]:true})); return 0; }
+        return s-1;
+      });
+    },1000);
+    return ()=>clearInterval(timerRef.current);
+  }, [qi, view]);
+
+  function startMock(lvl) {
+    const qs = [...MOCK_QUESTIONS[lvl]].sort(()=>Math.random()-0.5);
+    setMockQs(qs);
+    setQi(0);
+    setAnswers({});
+    setRevealed({});
+    setTimedOut(false);
+    setActiveLevel(lvl);
+    setView("mock");
+  }
+
+  function pick(opt) {
+    if (revealed[qi]) return;
+    clearInterval(timerRef.current);
+    setAnswers(a=>({...a,[qi]:opt}));
+    setRevealed(r=>({...r,[qi]:true}));
+  }
+
+  function next() {
+    if (qi+1>=mockQs.length) { setView("result"); return; }
+    setQi(i=>i+1);
+  }
+
+  const skillColors = {Lesen:"#1d4ed8",Hören:"#065f46",Schreiben:"#c9a84c",Sprechen:"#c45c3a"};
+
+  if (view==="menu") return (
+    <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+      <div style={{fontWeight:700,fontSize:22,color:"#0a2463",marginBottom:4}}>🎓 B1/B2 Exam Prep</div>
+      <div style={{fontSize:12,color:"#6b7fa3",marginBottom:20}}>Prepare specifically for the Goethe-Zertifikat format — timed questions, exam structure, and speaking prep</div>
+
+      {["B1","B2"].map(lvl=>{
+        const ex = EXAM_STRUCTURE[lvl];
+        return (
+          <div key={lvl} style={{background:"#fff",borderRadius:16,padding:"18px 20px",marginBottom:16,border:"1.5px solid #d0deff"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:16,color:"#0a2463"}}>{ex.name}</div>
+                <div style={{fontSize:11,color:"#6b7fa3",marginTop:2}}>Total time: {ex.totalTime} · Pass: {ex.passMark}</div>
+              </div>
+              {lvl===user?.level && <span style={{fontSize:11,background:"rgba(30,144,255,0.1)",color:"#1e90ff",padding:"3px 10px",borderRadius:10,fontWeight:700}}>Your Level</span>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+              {ex.parts.map(p=>(
+                <div key={p.skill} style={{background:"#f0f4ff",borderRadius:10,padding:"10px 12px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{width:8,height:8,borderRadius:"50%",background:skillColors[p.skill],flexShrink:0}}/>
+                    <span style={{fontWeight:700,fontSize:12,color:"#0a2463"}}>{p.label} ({p.time})</span>
+                  </div>
+                  <div style={{fontSize:11,color:"#6b7fa3"}}>{p.desc}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>{setActiveLevel(lvl);setView("pattern")}} style={{flex:1,padding:"9px",borderRadius:10,background:"#fff",border:"1.5px solid #d0deff",color:"#0a2463",fontWeight:600,cursor:"pointer",fontSize:13}}>
+                📋 Exam Pattern
+              </button>
+              <button onClick={()=>startMock(lvl)} style={{flex:1,padding:"9px",borderRadius:10,background:"#0a2463",color:"#1e90ff",fontWeight:700,cursor:"pointer",border:"none",fontSize:13}}>
+                ⏱ Mock Test →
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Speaking mock tip */}
+      <div style={{background:"linear-gradient(135deg,#0a2463,#1a4494)",borderRadius:14,padding:"16px 18px",color:"#fff"}}>
+        <div style={{fontWeight:700,fontSize:14,color:"#1e90ff",marginBottom:6}}>🎤 Speaking Mock with Luca</div>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.6,marginBottom:10}}>
+          Practice the speaking tasks with Luca acting as your Goethe examiner. Go to Chat, tell Luca: <em style={{color:"#fbbf24"}}>"Act as a Goethe B1 examiner and give me a speaking task."</em>
+        </div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>Luca will use the official speaking rubric criteria</div>
+      </div>
+    </div>
+  );
+
+  if (view==="pattern") {
+    const ex = EXAM_STRUCTURE[activeLevel];
+    return (
+      <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <button onClick={()=>setView("menu")} style={{padding:"6px 14px",borderRadius:9,background:"#fff",border:"1.5px solid #d0deff",color:"#6b7fa3",fontWeight:600,cursor:"pointer",fontSize:12}}>← Back</button>
+          <div style={{fontWeight:700,fontSize:16,color:"#0a2463"}}>📋 {ex.name} — Full Pattern</div>
+        </div>
+        {ex.parts.map(p=>(
+          <div key={p.skill} style={{background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:12,border:`2px solid ${skillColors[p.skill]}22`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <span style={{width:10,height:10,borderRadius:"50%",background:skillColors[p.skill]}}/>
+              <span style={{fontWeight:700,fontSize:15,color:"#0a2463"}}>{p.label} / {p.skill}</span>
+              <span style={{marginLeft:"auto",fontSize:12,color:skillColors[p.skill],fontWeight:600,background:`${skillColors[p.skill]}11`,padding:"2px 10px",borderRadius:8}}>{p.time}</span>
+            </div>
+            <div style={{fontSize:13,color:"#555",marginBottom:8}}>{p.desc}</div>
+          </div>
+        ))}
+        <div style={{background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:12,border:"1.5px solid #e8d5a3"}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#0a2463",marginBottom:10}}>💡 Exam Tips for {activeLevel}</div>
+          {ex.tips.map((tip,i)=>(
+            <div key={i} style={{display:"flex",gap:10,marginBottom:8,alignItems:"flex-start"}}>
+              <span style={{background:"#0a2463",color:"#1e90ff",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0,marginTop:1}}>{i+1}</span>
+              <span style={{fontSize:13,color:"#333",lineHeight:1.5}}>{tip}</span>
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>startMock(activeLevel)} style={{width:"100%",padding:14,borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,fontSize:15,border:"none",cursor:"pointer"}}>
+          ⏱ Start Timed Mock Test →
+        </button>
+      </div>
+    );
+  }
+
+  if (view==="result") {
+    const score = mockQs.filter((q,i)=>answers[i]===q.ans).length;
+    const pct = Math.round((score/mockQs.length)*100);
+    const pass = pct >= 60;
+    return (
+      <div style={{flex:1,overflowY:"auto",padding:24,background:"#f0f4ff"}}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{fontSize:52,marginBottom:10}}>{pass?"🎓":"💪"}</div>
+          <div style={{fontWeight:700,fontSize:24,color:"#0a2463"}}>{score}/{mockQs.length} — {pct}%</div>
+          <div style={{fontSize:14,color:pass?"#16a34a":"#c45c3a",fontWeight:600,marginTop:4}}>{pass?"Pass — well done!":"Keep practising — aim for 60%+"}</div>
+        </div>
+        {mockQs.map((q,i)=>(
+          <div key={i} style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:10,border:`1.5px solid ${answers[i]===q.ans?"#86efac":"#fca5a5"}`}}>
+            <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:10,padding:"2px 8px",borderRadius:6,background:skillColors[q.skill]+"22",color:skillColors[q.skill],fontWeight:700}}>{q.skill}</span>
+              <span style={{fontSize:12,color:"#6b7fa3"}}>{q.q}</span>
+            </div>
+            {answers[i]!==q.ans && <div style={{fontSize:11,padding:"3px 8px",borderRadius:6,background:"#fee2e2",color:"#dc2626",marginBottom:4}}>You: {answers[i]||"(time out)"}</div>}
+            <div style={{fontSize:11,padding:"3px 8px",borderRadius:6,background:"#dcfce7",color:"#16a34a"}}>✓ {q.ans}</div>
+          </div>
+        ))}
+        <div style={{display:"flex",gap:10,marginTop:16}}>
+          <button onClick={()=>setView("menu")} style={{flex:1,padding:13,borderRadius:12,background:"#fff",border:"1.5px solid #d0deff",color:"#0a2463",fontWeight:600,cursor:"pointer"}}>← Menu</button>
+          <button onClick={()=>startMock(activeLevel)} style={{flex:1,padding:13,borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,cursor:"pointer",border:"none"}}>🔄 Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  // MOCK VIEW
+  const q = mockQs[qi];
+  if (!q) return null;
+  const timePct = (timeLeft/(q.time||90))*100;
+  const timerColor = timeLeft<=5?"#ef4444":timeLeft<=15?"#f97316":"#22c55e";
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{padding:"10px 16px",background:"#fff",borderBottom:"1px solid #e8d5a3",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <button onClick={()=>setView("menu")} style={{padding:"5px 12px",borderRadius:8,background:"#fff",border:"1.5px solid #d0deff",color:"#6b7fa3",fontWeight:600,cursor:"pointer",fontSize:11}}>✕ Exit</button>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#0a2463"}}>{activeLevel} Mock · {qi+1}/{mockQs.length}</div>
+          <div style={{fontSize:10,color:skillColors[q.skill],fontWeight:600}}>{q.skill}</div>
+        </div>
+        <div style={{textAlign:"center",minWidth:50}}>
+          <div style={{fontWeight:700,fontSize:18,color:timerColor}}>{timeLeft}s</div>
+          <div style={{height:3,background:"#e8f0ff",borderRadius:2,overflow:"hidden",width:50}}>
+            <div style={{height:"100%",width:`${timePct}%`,background:timerColor,transition:"width 1s linear"}}/>
+          </div>
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:20,background:"#f0f4ff"}}>
+        <div style={{background:"#fff",borderRadius:16,padding:"20px 18px",marginBottom:16,border:"1.5px solid #d0deff",boxShadow:"0 2px 12px rgba(10,36,99,0.06)"}}>
+          <div style={{fontWeight:600,fontSize:15,color:"#0a2463",lineHeight:1.5}}>{q.q}</div>
+          {timedOut && <div style={{marginTop:10,fontSize:12,color:"#c45c3a",fontWeight:600}}>⏰ Time's up!</div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {q.opts.map((opt,i)=>{
+            const isSelected = answers[qi]===opt;
+            const isCorrect = opt===q.ans;
+            const rev = revealed[qi];
+            let bg="#fff", border="1.5px solid #d0deff", color="#0a2463";
+            if (rev) {
+              if (isCorrect) {bg="#dcfce7";border="2px solid #22c55e";color="#15803d";}
+              else if (isSelected) {bg="#fee2e2";border="2px solid #ef4444";color="#dc2626";}
+              else {bg="#f8fafc";color:"#94a3b8";}
+            }
+            return (
+              <button key={i} onClick={()=>pick(opt)}
+                style={{padding:"13px 16px",borderRadius:12,background:bg,border,color,fontWeight:500,fontSize:14,cursor:rev?"default":"pointer",textAlign:"left"}}>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+        {revealed[qi] && (
+          <button onClick={next} style={{width:"100%",padding:13,borderRadius:12,background:"#0a2463",color:"#1e90ff",fontWeight:700,fontSize:15,border:"none",cursor:"pointer",marginTop:16}}>
+            {qi+1>=mockQs.length?"See Results →":"Next Question →"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1037,6 +2732,10 @@ function SpeakingPanel({ user }) {
   const [speaking, setSpeaking] = useState(false);
   const [practiceCount, setPracticeCount] = useState({});
   const [showAll, setShowAll] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingResult, setRecordingResult] = useState(null); // "listening" | "done" | "error"
+  const mediaRecorderRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const sentences = SPEAKING_SENTENCES[activeLevel];
   const current = sentences[currentIdx];
@@ -1056,6 +2755,53 @@ function SpeakingPanel({ user }) {
     speak(current.de);
     const key = `${activeLevel}-${currentIdx}`;
     setPracticeCount(p => ({...p, [key]: (p[key]||0)+1}));
+  }
+
+  function startRecording() {
+    window.speechSynthesis.cancel();
+    setSpeaking(false);
+    setRecordingResult(null);
+
+    // Use Web Speech API SpeechRecognition if available
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setRecordingResult({ status: "error", msg: "Speech recognition not supported in this browser. Try Chrome." });
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "de-DE";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognitionRef.current = recognition;
+    setRecording(true);
+    setRecordingResult({ status: "listening" });
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript.toLowerCase().trim();
+      const target = current.de.toLowerCase().trim();
+      // Simple similarity — count matching words
+      const targetWords = target.split(/\s+/);
+      const spokenWords = transcript.split(/\s+/);
+      const matchCount = targetWords.filter(w => spokenWords.includes(w)).length;
+      const pct = Math.round((matchCount / targetWords.length) * 100);
+      let grade, color;
+      if (pct >= 85) { grade = "Excellent! 🎉"; color = "#16a34a"; }
+      else if (pct >= 60) { grade = "Good! Keep practising 👍"; color = "#ca8a04"; }
+      else { grade = "Try again — listen carefully first 🔁"; color = "#dc2626"; }
+      setRecordingResult({ status: "done", transcript, pct, grade, color });
+      setRecording(false);
+    };
+    recognition.onerror = () => {
+      setRecordingResult({ status: "error", msg: "Could not hear you. Please check your microphone and try again." });
+      setRecording(false);
+    };
+    recognition.onend = () => setRecording(false);
+    recognition.start();
+  }
+
+  function stopRecording() {
+    recognitionRef.current?.stop();
+    setRecording(false);
   }
 
   function next() { window.speechSynthesis.cancel(); setSpeaking(false); setCurrentIdx(i => (i+1) % sentences.length); }
@@ -1125,6 +2871,36 @@ function SpeakingPanel({ user }) {
             style={{width:"100%",padding:"10px",borderRadius:12,background:"#f0f4ff",color:"#1e90ff",fontWeight:600,fontSize:13,border:"1.5px solid #d0deff",cursor:"pointer",marginBottom:8}}>
             🐢 Play Slowly (for practice)
           </button>
+
+          {/* 🎙 Record yourself */}
+          <button onClick={recording ? stopRecording : startRecording}
+            style={{width:"100%",padding:"11px",borderRadius:12,background:recording?"#fee2e2":"linear-gradient(135deg,#065f46,#059669)",color:recording?"#dc2626":"#fff",fontWeight:700,fontSize:14,border:recording?"2px solid #fca5a5":"none",cursor:"pointer",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <span style={{fontSize:18}}>{recording?"⏹":"🎙"}</span>
+            {recording ? "Stop Recording" : "🎙 Record Yourself"}
+          </button>
+
+          {/* Recording result */}
+          {recordingResult && recordingResult.status==="listening" && (
+            <div style={{background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:10,padding:"10px 14px",textAlign:"center",fontSize:13,color:"#15803d",fontWeight:600}}>
+              🎙 Listening… speak the German phrase now
+            </div>
+          )}
+          {recordingResult && recordingResult.status==="error" && (
+            <div style={{background:"#fee2e2",border:"1.5px solid #fca5a5",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#dc2626"}}>
+              ⚠️ {recordingResult.msg}
+            </div>
+          )}
+          {recordingResult && recordingResult.status==="done" && (
+            <div style={{background:"#fff",border:`2px solid ${recordingResult.color}44`,borderRadius:12,padding:"12px 14px"}}>
+              <div style={{fontWeight:700,fontSize:14,color:recordingResult.color,marginBottom:6}}>{recordingResult.grade}</div>
+              <div style={{fontSize:12,color:"#6b7fa3",marginBottom:4}}>You said: <em style={{color:"#0a2463"}}>"{recordingResult.transcript}"</em></div>
+              <div style={{fontSize:12,color:"#6b7fa3",marginBottom:8}}>Target: <em style={{color:"#0a2463"}}>"{current.de}"</em></div>
+              <div style={{height:7,background:"#e8f0ff",borderRadius:4,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${recordingResult.pct}%`,background:recordingResult.color,borderRadius:4}}/>
+              </div>
+              <div style={{fontSize:11,color:recordingResult.color,fontWeight:600,marginTop:4,textAlign:"right"}}>{recordingResult.pct}% match</div>
+            </div>
+          )}
 
           {/* Practice counter */}
           {count > 0 && (
@@ -1486,13 +3262,19 @@ export default function App() {
     const curriculumLevel = level === "Beginner" ? "A1" : level;
     const u = { name, email, rollNumber: roll.trim().toUpperCase(), level: curriculumLevel, placementLabel: level };
     setUser(u);
+    // Count placement test as Session 1, give an initial score
+    setProgress({ streak: 1, sessions: 1, avgScore: 0 });
     // Save placement result
-    await saveProgress(u.rollNumber, { level: curriculumLevel, placement_done: true, name: u.name, email: u.email });
+    await saveProgress(u.rollNumber, {
+      level: curriculumLevel, placement_done: true,
+      name: u.name, email: u.email,
+      streak: 1
+    });
     setScreen("app");
     setTab("dashboard");
     setTyping(true);
     const welcome = await callClaude(
-      [{role:"user", content:`Hi! My name is ${u.name}, I'm a nurse from India learning German to work in Germany. My placement test result was "${level}". Please welcome me warmly and kick off my first mini-lesson appropriate for this level!`}],
+      [{role:"user", content:`My name is ${u.name}. I just completed my placement test and got "${level}". Welcome me personally, congratulate me on finishing the test, tell me my level in 1 sentence, and then show me a brief 12-week study plan for level ${curriculumLevel} — week by week, just the topic name for each week. Keep it motivating and warm. Use ## headings.`}],
       sysPrompt(u, null)
     );
     setMessages([{role:"assistant", content:welcome}]);
@@ -1546,27 +3328,84 @@ export default function App() {
   }
 
   function renderBubble(text) {
-    return text
-      // H1 — # Title
-      .replace(/^# (.+)$/gm, "<div style='font-weight:700;font-size:16px;color:#1a1a2e;margin:14px 0 6px'>$1</div>")
-      // H2 — ## Title
-      .replace(/^## (.+)$/gm, "<div style='font-weight:700;font-size:14px;color:#1a1a2e;margin:12px 0 5px;border-bottom:1px solid #ede8db;padding-bottom:4px'>$1</div>")
-      // H3 — ### Title
-      .replace(/^### (.+)$/gm, "<div style='font-weight:600;font-size:13px;color:#1a1a2e;margin:10px 0 4px'>$1</div>")
-      // Bold
-      .replace(/\*\*(.*?)\*\*/g, "<strong style='color:#c9a84c;font-weight:700'>$1</strong>")
-      // Italic
-      .replace(/_(.*?)_/g, "<em style='color:#6b8f71;font-style:italic'>$1</em>")
-      // Bullet points — lines starting with - or *
-      .replace(/^[-•] (.+)$/gm, "<div style='display:flex;gap:7px;margin:3px 0'><span style='color:#c9a84c;margin-top:1px;flex-shrink:0'>•</span><span>$1</span></div>")
-      // Numbered list
-      .replace(/^(\d+)\. (.+)$/gm, "<div style='display:flex;gap:7px;margin:3px 0'><span style='color:#c9a84c;font-weight:600;flex-shrink:0;min-width:16px'>$1.</span><span>$2</span></div>")
-      // Horizontal rule ---
-      .replace(/^---+$/gm, "<hr style='border:none;border-top:1px solid #ede8db;margin:10px 0'/>")
-      // Line breaks — double newline = paragraph gap
-      .replace(/\n\n/g, "<div style='margin-bottom:8px'></div>")
-      // Single newline
-      .replace(/\n/g, "<br/>");
+    if (!text) return "";
+    let html = text;
+
+    // 1. Code blocks (```...```) — do first before other transforms
+    html = html.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, (_, code) =>
+      `<div style='background:#1a1a2e;border-radius:8px;padding:10px 14px;margin:8px 0;overflow-x:auto;font-family:monospace;font-size:12px;color:#a3d977;line-height:1.6;white-space:pre'>${code.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`
+    );
+
+    // 2. Inline code `word`
+    html = html.replace(/`([^`]+)`/g,
+      "<code style='background:#f0f4ff;border:1px solid #d0deff;border-radius:4px;padding:1px 6px;font-family:monospace;font-size:12px;color:#0a2463'>$1</code>"
+    );
+
+    // 3. Headings (must come before bold)
+    html = html.replace(/^### (.+)$/gm,
+      "<div style='font-weight:700;font-size:13px;color:#0a2463;margin:12px 0 5px;letter-spacing:0.02em'>$1</div>"
+    );
+    html = html.replace(/^## (.+)$/gm,
+      "<div style='font-weight:700;font-size:15px;color:#0a2463;margin:14px 0 6px;border-bottom:2px solid #e8d5a3;padding-bottom:5px'>$1</div>"
+    );
+    html = html.replace(/^# (.+)$/gm,
+      "<div style='font-weight:800;font-size:17px;color:#0a2463;margin:16px 0 8px'>$1</div>"
+    );
+
+    // 4. Bold **text** and italic *text*
+    html = html.replace(/\*\*([^*]+)\*\*/g,
+      "<strong style='color:#c9a84c;font-weight:700'>$1</strong>"
+    );
+    html = html.replace(/\*([^*]+)\*/g,
+      "<em style='color:#6b8f71;font-style:italic'>$1</em>"
+    );
+    html = html.replace(/_([^_]+)_/g,
+      "<em style='color:#6b8f71;font-style:italic'>$1</em>"
+    );
+
+    // 5. German word | English | Hindi table-style rows (| col | col | col |)
+    html = html.replace(/^\|(.+)\|$/gm, (_, inner) => {
+      const cells = inner.split("|").map(c => c.trim());
+      const isDivider = cells.every(c => /^[-:]+$/.test(c));
+      if (isDivider) return "";
+      const isHeader = cells.some(c => c === c.toUpperCase() && c.length > 1 && /[A-Z]{2}/.test(c));
+      const cellHtml = cells.map(c =>
+        `<td style='padding:7px 12px;border-bottom:1px solid #e8f0ff;font-size:13px;color:${isHeader?"#0a2463":"#333"};font-weight:${isHeader?700:400}'>${c}</td>`
+      ).join("");
+      return `<tr style='background:${isHeader?"#f0f4ff":"#fff"}'>${cellHtml}</tr>`;
+    });
+    // Wrap consecutive <tr> in a table
+    html = html.replace(/(<tr[\s\S]*?<\/tr>\n?)+/g, m =>
+      `<div style='overflow-x:auto;margin:10px 0'><table style='border-collapse:collapse;width:100%;border:1px solid #e8f0ff;border-radius:10px;overflow:hidden'>${m}</table></div>`
+    );
+
+    // 6. Bullet lists — lines starting with - or * or •
+    html = html.replace(/^[-*•] (.+)$/gm,
+      "<div style='display:flex;gap:8px;margin:4px 0;align-items:flex-start'><span style='color:#1e90ff;font-size:16px;line-height:1.2;flex-shrink:0'>•</span><span style='color:#1a1a2e;line-height:1.5'>$1</span></div>"
+    );
+
+    // 7. Numbered lists
+    html = html.replace(/^(\d+)\. (.+)$/gm,
+      "<div style='display:flex;gap:8px;margin:4px 0;align-items:flex-start'><span style='background:#e8f0ff;color:#0a2463;font-weight:700;font-size:11px;min-width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0'>$1</span><span style='color:#1a1a2e;line-height:1.5'>$2</span></div>"
+    );
+
+    // 8. Horizontal rule
+    html = html.replace(/^---+$/gm,
+      "<hr style='border:none;border-top:1.5px solid #e8d5a3;margin:12px 0'/>"
+    );
+
+    // 9. Blockquote > text
+    html = html.replace(/^> (.+)$/gm,
+      "<div style='border-left:3px solid #1e90ff;padding:6px 12px;margin:6px 0;background:#f0f7ff;color:#0a2463;font-style:italic;border-radius:0 8px 8px 0;font-size:13px'>$1</div>"
+    );
+
+    // 10. Paragraphs — double newline → spacing div
+    html = html.replace(/\n\n/g, "<div style='margin-bottom:10px'></div>");
+
+    // 11. Single newline → br
+    html = html.replace(/\n/g, "<br/>");
+
+    return html;
   }
 
   // ── ONBOARD ──
@@ -1668,9 +3507,9 @@ export default function App() {
           <div><div style={S.logoText}>GC Buddy</div><div style={S.logoSub}>by Testbook</div></div>
         </div>
         <nav style={{display:"flex",gap:3}}>
-          {["dashboard","curriculum","chat","exercise","speaking","translations","media"].map(t => (
+          {["dashboard","curriculum","chat","exercise","vocab","grammar","roleplay","docs","exam","speaking","translations","media"].map(t => (
             <button key={t} style={S.navPill(tab===t)} onClick={()=>setTab(t)}>
-              {t==="dashboard"?"Dashboard":t==="curriculum"?"Curriculum":t==="chat"?"Chat with Luca":t==="exercise"?"Daily Exercise":t==="translations"?"Translations":t==="speaking"?"Speaking":"Media"}
+              {t==="dashboard"?"Dashboard":t==="curriculum"?"Curriculum":t==="chat"?"Chat with Luca":t==="exercise"?"Daily Exercise":t==="vocab"?"📚 Vocab":t==="grammar"?"🧠 Grammar":t==="roleplay"?"🎭 Roleplay":t==="docs"?"🏥 Documents":t==="exam"?"🎓 Exam Prep":t==="translations"?"Translations":t==="speaking"?"Speaking":"Media"}
             </button>
           ))}
         </nav>
@@ -1725,7 +3564,7 @@ export default function App() {
         </aside>
 
         {/* Content */}
-        {tab==="dashboard" && <Dashboard user={user} progress={progress} messages={messages} completedTopics={completedTopics} onStartLesson={startLesson} onGoToChat={()=>setTab("chat")} onGoToExercise={()=>setTab("exercise")} exerciseReady={exerciseReady}/>}
+        {tab==="dashboard" && <Dashboard user={user} progress={progress} messages={messages} completedTopics={completedTopics} onStartLesson={startLesson} onGoToChat={()=>setTab("chat")} onGoToExercise={()=>setTab("exercise")} onGoToVocab={()=>setTab("vocab")} onGoToGrammar={()=>setTab("grammar")} onGoToDocs={()=>setTab("docs")} onGoToExam={()=>setTab("exam")} exerciseReady={exerciseReady}/>}
         {tab==="curriculum" && <CurriculumMap user={user} completedTopics={completedTopics} onStartLesson={startLesson}/>}
 
         {tab==="chat" && (
@@ -1784,6 +3623,11 @@ export default function App() {
         )}
 
         {tab==="exercise" && <ExercisePanel user={user} history={messages} onBack={()=>setTab("chat")} onDone={handleExDone} exerciseDoneAt={exerciseDoneAt}/>}
+        {tab==="vocab" && <VocabPanel user={user}/>}
+        {tab==="grammar" && <GrammarQuizPanel user={user}/>}
+        {tab==="roleplay" && <RoleplayPanel user={user}/>}
+        {tab==="docs" && <HospitalDocsPanel user={user}/>}
+        {tab==="exam" && <ExamPrepPanel user={user}/>}
         {tab==="speaking" && <SpeakingPanel user={user}/>}
         {tab==="translations" && <TranslationPanel/>}
         {tab==="media" && <MediaPanel user={user}/>}
