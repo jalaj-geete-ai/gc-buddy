@@ -288,7 +288,7 @@ Deno.serve(async (req: Request) => {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: 'GC Admissions <support.gc@testbook.com>',
+          from: 'GC Admissions <admissions.gc@testbook.com>',
           to: [toEmail],
           subject,
           attachments: [{ filename: fileName, content: b64 }],
