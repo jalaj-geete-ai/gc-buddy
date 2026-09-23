@@ -61,15 +61,29 @@ create table if not exists public.auth_sessions (
   `generate-document` at runtime).
 - Generated PDFs are written to the existing **`admission-letters`** bucket.
 
-## ⚠️ Post-merge cleanup (run only AFTER CRMV2 #7 is merged to production)
+## ✅ Post-merge cleanup — APPLIED (migration `plaintext_password_cleanup`)
 
-Until the new (hashed) login is live in production, the old client still reads
-`login_password`, so the plaintext column must stay. Once merged and verified:
+The hashed login is live in production and verified, so plaintext passwords have
+been removed. All 27 members authenticate via `password_hash` (bcrypt); 0 rows
+retain `login_password`. `set_member_password` was also updated to stop writing
+plaintext, so new BDs never reintroduce it. `verify_login` is unaffected (it
+reads `password_hash`).
 
 ```sql
+-- future password sets no longer write plaintext
+create or replace function public.set_member_password(p_id uuid, p_password text)
+  returns void language sql security definer set search_path to 'public','extensions'
+as $$
+  update public.v2_bd_members
+    set password_hash = crypt(p_password, gen_salt('bf', 10)),
+        login_password = null, updated_at = now()
+    where id = p_id;
+$$;
+
 -- remove plaintext passwords at rest
 alter table public.v2_bd_members alter column login_password drop not null;
-update public.v2_bd_members set login_password = null;
--- and block any client from reading the secret columns directly
+update public.v2_bd_members set login_password = null where login_password is not null;
+
+-- block any client from reading the secret columns directly
 revoke select (login_password, password_hash) on public.v2_bd_members from anon, authenticated;
 ```

@@ -192,7 +192,20 @@ function buildReceiptPages(b: PDFBuilder, a: Record<string, unknown>) {
   b.page.drawText('Received From', { x: LM, y: b.y, size: 8, font: b.fonts.bold, color: MUTED }); b.y -= 13
   b.page.drawText(cname, { x: LM, y: b.y, size: 11, font: b.fonts.bold, color: BLACK }); b.y -= 14
   b.page.drawText(`${S(a.current_city)}  ·  ${S(a.candidate_phone)}`, { x: LM, y: b.y, size: 9.5, font: b.fonts.reg, color: BLACK }); b.y -= 13
-  b.page.drawText(`Roll Number: ${roll}`, { x: LM, y: b.y, size: 9.5, font: b.fonts.bold, color: NAVY }); b.y -= 22
+  b.page.drawText(`Roll Number: ${roll}`, { x: LM, y: b.y, size: 9.5, font: b.fonts.bold, color: NAVY }); b.y -= 18
+
+  // Thank-you acknowledgement (programme name mirrors the Admission Letter)
+  const thankSegs: Seg[] = [
+    { t: 'Thank you for your payment towards the ' }, { t: 'German Language Programme (A1-B2)', b: true },
+    { t: ' at Global Careers by Testbook. We gratefully acknowledge receipt of ' }, { t: inr(paid), b: true },
+    { t: ' and warmly welcome you to the programme. We look forward to supporting you on your journey to a nursing career in Germany.' },
+  ]
+  const thankLines = mixedWrap(thankSegs, b.fonts, 9.5, CW - 16)
+  const thankH = thankLines.length * 13 + 12
+  b.page.drawRectangle({ x: LM, y: b.y - thankH, width: CW, height: thankH, color: LGRAY })
+  let thankY = b.y - 13
+  for (const line of thankLines) { drawSegLine(b.page, line, LM + 8, thankY, 9.5, b.fonts, NAVY); thankY -= 13 }
+  b.y -= thankH + 16
 
   b.sectionHead('Payment Summary'); b.y -= 2
   const rows: [string, string, boolean?][] = [
@@ -212,23 +225,25 @@ function buildReceiptPages(b: PDFBuilder, a: Record<string, unknown>) {
 
   b.page.drawText('Important Payment Notes', { x: LM, y: b.y, size: 11, font: b.fonts.bold, color: NAVY }); b.y -= 8
   b.page.drawLine({ start: { x: LM, y: b.y }, end: { x: A4W - RM, y: b.y }, thickness: 0.5, color: LGRAY }); b.y -= 13
-  const notes: Array<{ head: string; segs: Seg[] }> = [
-    { head: '1. How Your EMI is Processed', segs: [{ t: 'Your monthly instalment of ' }, { t: inr(emi_pm), b: true }, { t: ' will be automatically deducted from your registered bank account or payment source on the ' }, { t: `${emiOrd} of each month`, b: true }, { t: '. The deduction runs on an auto-debit / NACH mandate set up at the time of enrolment. You do not need to manually initiate any payment each month — ensure funds are available and the rest is handled automatically.' }] },
-    { head: '2. Maintain Sufficient Bank Balance', segs: [{ t: 'Please ensure your account holds at least ' }, { t: inr(emi_pm), b: true }, { t: ` on or before the ${emiOrd} of every month. Insufficient balance will result in a failed transaction. Banks typically levy a dishonour charge of Rs. 300–800 per failed attempt. Global Careers by Testbook bears no responsibility for such bank charges. Repeated failures may also impact your CIBIL credit score.` }] },
-    { head: '3. Failed EMI — Consequences & Reinstatement', segs: [{ t: 'A failed EMI deduction will result in the ' }, { t: 'immediate suspension of your access', b: true }, { t: ' to the GC Buddy AI platform and all live classes. Access is reinstated only upon recovery of the overdue amount. To clear a failed EMI, contact your Success Manager Mr. Amit at ' + SUPPORT_PHONE + ' or ' }, { t: EMAIL, b: true }, { t: '. Persistent non-payment beyond 30 days may lead to permanent termination of enrolment without refund.' }] },
-    { head: '4. EMI Tenure Extension — 18 or 24 Months', segs: [{ t: `If your current ${n_emi}-month EMI schedule feels stretched, you may extend your tenure to ` }, { t: '18 or 24 months', b: true }, { t: " through our partner lending institutions, subject to your credit score and the lender's eligibility. A longer tenure reduces your monthly instalment while increasing total interest payable. This must be requested before your 2nd EMI deduction date." }] },
-    { head: '5. Partner Loan — Disclaimer of Liability', segs: [{ t: 'If you avail financing through any partner institution (NBFC / co-lending partner), the loan agreement, repayment schedule, interest rates and all obligations are strictly between you and the lender. ' }, { t: 'Global Careers by Testbook bears absolutely no liability', b: true }, { t: ' for loan-related disputes, interest charges, penalties, credit-score impact, or any legal action by the lender. Read all loan documents carefully before signing.' }] },
-    { head: '6. Payment Receipts & Documentation', segs: [{ t: 'An official payment receipt will be issued to your registered email within 3 working days of each successful payment. For any discrepancy, write to us with your Roll Number ' }, { t: roll, b: true }, { t: ' and the transaction reference number. Save all bank confirmation messages for your records.' }] },
-    { head: '7. GST & Tax Information', segs: [{ t: 'The programme fee is inclusive of all applicable taxes including GST at the prevailing rate. A GST invoice will be provided upon request. If you require an invoice in a specific entity name for reimbursement, inform your counsellor with the necessary GSTIN details.' }] },
-    { head: '8. Fee Non-Refundability', segs: [{ t: 'All fees paid — registration fee, programme fee, and all EMI instalments — are ' }, { t: 'strictly non-refundable', b: true }, { t: ' under any circumstances, including change of mind, inability to attend, personal emergencies, relocation, or medical conditions.' }] },
-  ]
-  for (const note of notes) {
+  const notes: Array<{ head: string; segs: Seg[] }> = []
+  // EMI-specific notes only apply when the candidate is on a Testbook EMI plan.
+  if (!a.full_payment && balance > 0) {
+    notes.push({ head: 'How Your EMI is Processed', segs: [{ t: 'For EMIs processed directly by Global Careers by Testbook, your monthly instalment of ' }, { t: inr(emi_pm), b: true }, { t: ' is automatically deducted from your registered bank account on the ' }, { t: `${emiOrd} of each month`, b: true }, { t: ', via the auto-debit / NACH mandate set up at the time of enrolment. You do not need to initiate any payment manually — simply keep sufficient funds available. (EMIs financed through a partner lender instead follow that lender\'s own schedule — see the Partner Loan note below.)' }] })
+    notes.push({ head: 'Maintain Sufficient Bank Balance', segs: [{ t: 'Please ensure your account holds at least ' }, { t: inr(emi_pm), b: true }, { t: ` on or before the ${emiOrd} of every month. Insufficient balance will result in a failed transaction. Banks typically levy a dishonour charge of Rs. 300-800 per failed attempt. Global Careers by Testbook bears no responsibility for such bank charges. Repeated failures may also impact your CIBIL credit score.` }] })
+    notes.push({ head: 'Failed EMI — Consequences & Reinstatement', segs: [{ t: 'A failed EMI deduction will result in the ' }, { t: 'immediate suspension of your access', b: true }, { t: ' to the GC Buddy AI platform and all live classes. Access is reinstated only upon recovery of the overdue amount. To clear a failed EMI, contact your Success Manager Mr. Amit at ' + SUPPORT_PHONE + ' or ' }, { t: EMAIL, b: true }, { t: '. Persistent non-payment beyond 30 days may lead to permanent termination of enrolment without refund.' }] })
+    notes.push({ head: 'EMI Tenure Extension — 18 or 24 Months', segs: [{ t: `If your current ${n_emi}-month EMI schedule feels stretched, you may extend your tenure to ` }, { t: '18 or 24 months', b: true }, { t: " through our partner lending institutions, subject to your credit score and the lender's eligibility. A longer tenure reduces your monthly instalment while increasing total interest payable. This must be requested before your 2nd EMI deduction date." }] })
+    notes.push({ head: 'Partner Loan — Disclaimer of Liability', segs: [{ t: 'If you avail financing through any partner institution (NBFC / co-lending partner), the loan agreement, repayment schedule, interest rates and all obligations are strictly between you and the lender. ' }, { t: 'Global Careers by Testbook bears absolutely no liability', b: true }, { t: ' for loan-related disputes, interest charges, penalties, credit-score impact, or any legal action by the lender. Read all loan documents carefully before signing.' }] })
+  }
+  // Non-refundability applies to the amount actually paid on this receipt.
+  notes.push({ head: 'Fee Non-Refundability', segs: [{ t: 'The amount paid on this receipt — ' }, { t: inr(paid), b: true }, { t: ' — is ' }, { t: 'strictly non-refundable', b: true }, { t: ' under any circumstances, including change of mind, inability to attend, personal emergencies, relocation, or medical conditions.' }] })
+  notes.forEach((note, i) => {
+    const head = `${i + 1}. ${note.head}`
     const bodyH = blockH(note.segs, b.fonts, 9, CW, 13)
     b.checkBreak(14 + bodyH + 9)
-    b.page.drawText(note.head, { x: LM, y: b.y, size: 9.5, font: b.fonts.bold, color: NAVY }); b.y -= 14
+    b.page.drawText(head, { x: LM, y: b.y, size: 9.5, font: b.fonts.bold, color: NAVY }); b.y -= 14
     for (const line of mixedWrap(note.segs, b.fonts, 9, CW)) { drawSegLine(b.page, line, LM, b.y, 9, b.fonts, BLACK); b.y -= 13 }
     b.y -= 9
-  }
+  })
 }
 
 async function buildPDF(a: Record<string, unknown>, type: string, lhBytes: Uint8Array): Promise<Uint8Array> {
