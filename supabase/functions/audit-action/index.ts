@@ -30,18 +30,15 @@ Deno.serve(async (req: Request) => {
   if (!CRM_KEY) return j({ success: false, error: 'CRM key not configured' }, 500)
 
   try {
-    const { action, admission_id, reject_reason, auth } = await req.json()
-    if (!auth?.name || !auth?.password) return j({ success: false, error: 'auth required' }, 401)
+    const { action, admission_id, reject_reason, token } = await req.json()
+    if (!token) return j({ success: false, error: 'auth required' }, 401)
     if (!admission_id || !['approve', 'reject'].includes(action)) return j({ success: false, error: 'bad request' }, 400)
 
-    // 1. Verify the caller is an active Audit Portal user
-    const authRes = await crm(
-      `v2_bd_members?select=name,role&name=eq.${encodeURIComponent(auth.name)}` +
-      `&login_password=eq.${encodeURIComponent(auth.password)}&role=eq.audit&is_active=eq.true`,
-    )
-    const authRows = await authRes.json()
-    if (!Array.isArray(authRows) || authRows.length === 0) return j({ success: false, error: 'not authorised' }, 401)
-    const reviewer = authRows[0].name
+    // 1. Validate the caller's session token and require the audit role
+    const vRes = await crm('rpc/validate_session', { method: 'POST', body: JSON.stringify({ p_token: token }) })
+    const v = await vRes.json()
+    if (!v || v.role !== 'audit') return j({ success: false, error: 'not authorised' }, 401)
+    const reviewer = v.name
 
     // 2. Load the admission
     const admRes = await crm(`admissions?id=eq.${admission_id}&select=*`)
