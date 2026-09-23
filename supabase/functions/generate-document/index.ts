@@ -174,9 +174,12 @@ function drawTable(b: PDFBuilder, rows: [string, string, boolean?][], c1W: numbe
 function buildReceiptPages(b: PDFBuilder, a: Record<string, unknown>) {
   const cname = S(a.candidate_name), roll = S(a.roll_number)
   const receiptNo = S(a.receipt_no) || roll
-  const pfee = Number(a.program_fee ?? 0), rfee = Number(a.reg_fee ?? 0), paid = Number(a.collected_amount ?? 0)
+  // The amount paid at enrolment (collected_amount) IS the registration/down payment.
+  const pfee = Number(a.program_fee ?? 0), paid = Number(a.collected_amount ?? 0)
   const n_emi = Number(a.emi_months ?? 0), emiDay = Number(a.emi_day ?? 3)
-  const emib = pfee - rfee, emi_pm = n_emi > 0 ? Math.round(emib / n_emi) : 0, balance = pfee - paid, emiOrd = ordinal(emiDay)
+  const balance = pfee - paid
+  const emi_pm = (!a.full_payment && n_emi > 0 && balance > 0) ? Math.round(balance / n_emi) : 0
+  const emiOrd = ordinal(emiDay)
 
   b.newPage()
   const title = 'Payment Receipt'
@@ -192,14 +195,19 @@ function buildReceiptPages(b: PDFBuilder, a: Record<string, unknown>) {
   b.page.drawText(`Roll Number: ${roll}`, { x: LM, y: b.y, size: 9.5, font: b.fonts.bold, color: NAVY }); b.y -= 22
 
   b.sectionHead('Payment Summary'); b.y -= 2
-  drawTable(b, [
+  const rows: [string, string, boolean?][] = [
     ['Candidate Name', cname], ['Roll Number', roll], ['Enrolment Date', fdate(a.enrollment_date as string)],
-    ['Total Programme Fee', inr(pfee)], ['Registration Fee (paid at enrolment)', inr(rfee)],
-    ['Amount Subject to EMI', inr(emib), true], ['Number of Monthly EMIs', `${n_emi} months`],
-    ['Monthly EMI Amount', inr(emi_pm), true], ['EMI Deduction Date', `${emiOrd} of every month`],
-    ['Amount Collected at Enrolment', inr(paid)], ['Balance Payable (via EMI)', inr(balance), true],
-    ['Payment Mode', a.full_payment ? 'Full Payment' : 'EMI Plan'],
-  ], CW * 0.42, CW * 0.58)
+    ['Total Programme Fee', inr(pfee)],
+    ['Amount Paid at Enrolment', inr(paid), true],
+    ['Balance Payable', inr(balance), true],
+  ]
+  if (!a.full_payment && balance > 0) {
+    rows.push(['Number of Monthly EMIs', `${n_emi} months`])
+    rows.push(['Monthly EMI Amount', inr(emi_pm), true])
+    rows.push(['EMI Deduction Date', `${emiOrd} of every month`])
+  }
+  rows.push(['Payment Mode', a.full_payment ? 'Full Payment' : 'EMI Plan'])
+  drawTable(b, rows, CW * 0.42, CW * 0.58)
   b.y -= 18
 
   b.page.drawText('Important Payment Notes', { x: LM, y: b.y, size: 11, font: b.fonts.bold, color: NAVY }); b.y -= 8
