@@ -7,10 +7,20 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PDFDocument, StandardFonts, rgb, PDFFont, RGB, PDFImage } from 'https://esm.sh/pdf-lib@1.17.1'
 
-// Letterhead JPEG lives in the private `assets` storage bucket (assets/letterhead.jpg)
-// on this project; fetched with the service role at runtime.
-const LETTERHEAD_BUCKET = 'assets'
-const LETTERHEAD_PATH = 'letterhead.jpg'
+// The header/footer are drawn natively (crisp vector text + the testbook logo),
+// so the document no longer embeds a low-resolution full-page letterhead scan.
+// The crisp testbook wordmark PNG lives in the private `assets` bucket and is
+// fetched at runtime; if it is missing, a clean vector "testbook" wordmark is
+// drawn instead so document generation never fails.
+const LOGO_BUCKET = "assets"
+const LOGO_PATH = "testbook-logo.png"
+
+// Registered entity + address for the header/footer. The floor number is
+// intentionally omitted — the address starts from the building number.
+const COMPANY = 'TESTBOOK EDU SOLUTIONS PRIVATE LIMITED'
+const ADDR1 = 'No. D-8, Sector-3, Noida'
+const ADDR2 = 'GautamBuddh Nagar, Uttar Pradesh - 201301'
+const ADDR_FOOT = 'No. D-8, Sector-3, Noida, GautamBuddh Nagar, Uttar Pradesh - 201301'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -19,8 +29,9 @@ const CORS = {
 }
 
 const A4W = 595.28, A4H = 841.89
-const LM = 60, RM = 60, CW = A4W - LM - RM, TOP = 684, BM = 110
+const LM = 60, RM = 60, CW = A4W - LM - RM, TOP = 738, BM = 84
 const BLACK = rgb(0.09,0.09,0.09), NAVY = rgb(0.082,0.133,0.271), BLUE = rgb(0.118,0.216,0.447),
+      BRAND = rgb(0.11,0.44,0.83),
       MUTED = rgb(0.40,0.43,0.50), LGRAY = rgb(0.937,0.945,0.953), MGRAY = rgb(0.80,0.82,0.84), WHITE = rgb(1,1,1)
 const EMAIL = 'support.gc@testbook.com'
 const SUPPORT_PHONE = '+91 92173 03928'
@@ -84,16 +95,37 @@ function blockH(segs: Seg[], fonts: Fonts, size: number, maxW: number, lh: numbe
 }
 
 class PDFBuilder {
-  doc!: PDFDocument; fonts!: Fonts; lh!: PDFImage; page: any; y = TOP
-  async init(lhBytes: Uint8Array) {
+  doc!: PDFDocument; fonts!: Fonts; logo: PDFImage | null = null; page: any; y = TOP
+  async init(logoBytes: Uint8Array | null) {
     this.doc = await PDFDocument.create()
     this.fonts = { reg: await this.doc.embedFont(StandardFonts.Helvetica), bold: await this.doc.embedFont(StandardFonts.HelveticaBold) }
-    this.lh = await this.doc.embedJpg(lhBytes)
+    if (logoBytes) { try { this.logo = await this.doc.embedPng(logoBytes) } catch { this.logo = null } }
+  }
+  // Crisp, vector letterhead drawn on every page (no scanned image).
+  drawHeader() {
+    const p = this.page, rx = A4W - RM
+    if (this.logo) {
+      const logoW = 118, logoH = logoW * this.logo.height / this.logo.width
+      p.drawImage(this.logo, { x: LM, y: 805 - logoH, width: logoW, height: logoH })
+    } else {
+      // Vector fallback wordmark (used only until testbook-logo.png is uploaded)
+      p.drawText('testbook', { x: LM, y: 783, size: 22, font: this.fonts.bold, color: BRAND })
+    }
+    p.drawText(COMPANY, { x: rx - this.fonts.bold.widthOfTextAtSize(COMPANY, 9), y: 799, size: 9, font: this.fonts.bold, color: NAVY })
+    p.drawText(ADDR1, { x: rx - this.fonts.reg.widthOfTextAtSize(ADDR1, 8), y: 787, size: 8, font: this.fonts.reg, color: MUTED })
+    p.drawText(ADDR2, { x: rx - this.fonts.reg.widthOfTextAtSize(ADDR2, 8), y: 776, size: 8, font: this.fonts.reg, color: MUTED })
+    p.drawLine({ start: { x: LM, y: 766 }, end: { x: rx, y: 766 }, thickness: 1.4, color: BRAND })
+  }
+  drawFooter() {
+    const p = this.page
+    p.drawLine({ start: { x: LM, y: 66 }, end: { x: A4W - RM, y: 66 }, thickness: 0.8, color: BRAND })
+    p.drawText(COMPANY, { x: (A4W - this.fonts.bold.widthOfTextAtSize(COMPANY, 7.5)) / 2, y: 52, size: 7.5, font: this.fonts.bold, color: NAVY })
+    p.drawText(ADDR_FOOT, { x: (A4W - this.fonts.reg.widthOfTextAtSize(ADDR_FOOT, 7)) / 2, y: 42, size: 7, font: this.fonts.reg, color: MUTED })
   }
   newPage() {
     this.page = this.doc.addPage([A4W, A4H])
-    this.page.drawImage(this.lh, { x: 0, y: 0, width: A4W, height: A4H })
-    this.page.drawRectangle({ x: 32, y: 662, width: A4W - 64, height: 42, color: WHITE }) // mask Ref/Date band
+    this.drawHeader()
+    this.drawFooter()
     this.y = TOP
   }
   checkBreak(need: number) { if (this.y - need < BM + 10) this.newPage() }
@@ -121,12 +153,12 @@ function buildLetterPages(b: PDFBuilder, a: Record<string, unknown>) {
   if (a.candidate_phone) { b.page.drawText(S(a.candidate_phone), { x: LM, y, size: 10, font: b.fonts.reg, color: BLACK }); y -= 15 }
   y -= 5
   b.page.drawText(`Dear ${cname},`, { x: LM, y, size: 10.5, font: b.fonts.reg, color: BLACK }); y -= 20
-  y = b.block([{ t: 'We are delighted to inform you that you have been successfully enrolled in the ' }, { t: 'German Language Programme (A1–B2)', b: true }, { t: ' at ' }, { t: 'Global Careers by Testbook', b: true }, { t: '. This programme is designed specifically for nursing professionals aspiring to build a rewarding career in Germany. We warmly welcome you and extend our heartiest congratulations on this life-changing decision.' }], 10.5, LM, y, CW, 15); y -= 10
+  y = b.block([{ t: 'We are delighted to inform you that you have been successfully enrolled in the ' }, { t: 'German Language Programme (A1–B2)', b: true }, { t: ' at ' }, { t: 'Testbook Edu Solutions', b: true }, { t: '. This programme is designed specifically for nursing professionals aspiring to build a rewarding career in Germany. We warmly welcome you and extend our heartiest congratulations on this life-changing decision.' }], 10.5, LM, y, CW, 15); y -= 10
   y = b.block([{ t: "Germany's healthcare sector is one of the most respected in the world — offering competitive salaries, world-class infrastructure, and a deeply fulfilling work environment where nursing professionals are genuinely valued. With our AI-powered platform, expert faculty, and a dedicated support team, you are in excellent hands. You are not just learning a language — " }, { t: 'you are building a future.', b: true }], 10.5, LM, y, CW, 15); y -= 10
   y = b.block([{ t: 'To get started, your dedicated Success Manager ' }, { t: 'Mr. Amit', b: true }, { t: ' will reach out to schedule your welcome onboarding call — covering KYC verification, batch selection, and getting set up on ' }, { t: 'GC Buddy AI', b: true }, { t: '. Your counsellor ' }, { t: bd, b: true }, { t: ' also remains available for any enrolment queries.' }], 10.5, LM, y, CW, 15); y -= 18
   b.page.drawText('Warm regards,', { x: LM, y, size: 10.5, font: b.fonts.reg, color: BLACK }); y -= 24
   b.page.drawText('Student Success Team', { x: LM, y, size: 11, font: b.fonts.bold, color: BLACK }); y -= 15
-  b.page.drawText('Global Careers by Testbook', { x: LM, y, size: 10, font: b.fonts.reg, color: MUTED }); y -= 13
+  b.page.drawText('Testbook Edu Solutions', { x: LM, y, size: 10, font: b.fonts.reg, color: MUTED }); y -= 13
   b.page.drawText(EMAIL, { x: LM, y, size: 10, font: b.fonts.reg, color: MUTED })
 
   // Page 2 — next steps
@@ -197,7 +229,7 @@ function buildReceiptPages(b: PDFBuilder, a: Record<string, unknown>) {
   // Thank-you acknowledgement (programme name mirrors the Admission Letter)
   const thankSegs: Seg[] = [
     { t: 'Thank you for your payment towards the ' }, { t: 'German Language Programme (A1-B2)', b: true },
-    { t: ' at Global Careers by Testbook. We gratefully acknowledge receipt of ' }, { t: inr(paid), b: true },
+    { t: ' at Testbook Edu Solutions. We gratefully acknowledge receipt of ' }, { t: inr(paid), b: true },
     { t: ' and warmly welcome you to the programme. We look forward to supporting you on your journey to a nursing career in Germany.' },
   ]
   const thankLines = mixedWrap(thankSegs, b.fonts, 9.5, CW - 16)
@@ -228,11 +260,11 @@ function buildReceiptPages(b: PDFBuilder, a: Record<string, unknown>) {
   const notes: Array<{ head: string; segs: Seg[] }> = []
   // EMI-specific notes only apply when the candidate is on a Testbook EMI plan.
   if (!a.full_payment && balance > 0) {
-    notes.push({ head: 'How Your EMI is Processed', segs: [{ t: 'For EMIs processed directly by Global Careers by Testbook, your monthly instalment of ' }, { t: inr(emi_pm), b: true }, { t: ' is automatically deducted from your registered bank account on the ' }, { t: `${emiOrd} of each month`, b: true }, { t: ', via the auto-debit / NACH mandate set up at the time of enrolment. You do not need to initiate any payment manually — simply keep sufficient funds available. (EMIs financed through a partner lender instead follow that lender\'s own schedule — see the Partner Loan note below.)' }] })
-    notes.push({ head: 'Maintain Sufficient Bank Balance', segs: [{ t: 'Please ensure your account holds at least ' }, { t: inr(emi_pm), b: true }, { t: ` on or before the ${emiOrd} of every month. Insufficient balance will result in a failed transaction. Banks typically levy a dishonour charge of Rs. 300-800 per failed attempt. Global Careers by Testbook bears no responsibility for such bank charges. Repeated failures may also impact your CIBIL credit score.` }] })
+    notes.push({ head: 'How Your EMI is Processed', segs: [{ t: 'For EMIs processed directly by Testbook Edu Solutions, your monthly instalment of ' }, { t: inr(emi_pm), b: true }, { t: ' is automatically deducted from your registered bank account on the ' }, { t: `${emiOrd} of each month`, b: true }, { t: ', via the auto-debit / NACH mandate set up at the time of enrolment. You do not need to initiate any payment manually — simply keep sufficient funds available. (EMIs financed through a partner lender instead follow that lender\'s own schedule — see the Partner Loan note below.)' }] })
+    notes.push({ head: 'Maintain Sufficient Bank Balance', segs: [{ t: 'Please ensure your account holds at least ' }, { t: inr(emi_pm), b: true }, { t: ` on or before the ${emiOrd} of every month. Insufficient balance will result in a failed transaction. Banks typically levy a dishonour charge of Rs. 300-800 per failed attempt. Testbook Edu Solutions bears no responsibility for such bank charges. Repeated failures may also impact your CIBIL credit score.` }] })
     notes.push({ head: 'Failed EMI — Consequences & Reinstatement', segs: [{ t: 'A failed EMI deduction will result in the ' }, { t: 'immediate suspension of your access', b: true }, { t: ' to the GC Buddy AI platform and all live classes. Access is reinstated only upon recovery of the overdue amount. To clear a failed EMI, contact your Success Manager Mr. Amit at ' + SUPPORT_PHONE + ' or ' }, { t: EMAIL, b: true }, { t: '. Persistent non-payment beyond 30 days may lead to permanent termination of enrolment without refund.' }] })
     notes.push({ head: 'EMI Tenure Extension — 18 or 24 Months', segs: [{ t: `If your current ${n_emi}-month EMI schedule feels stretched, you may extend your tenure to ` }, { t: '18 or 24 months', b: true }, { t: " through our partner lending institutions, subject to your credit score and the lender's eligibility. A longer tenure reduces your monthly instalment while increasing total interest payable. This must be requested before your 2nd EMI deduction date." }] })
-    notes.push({ head: 'Partner Loan — Disclaimer of Liability', segs: [{ t: 'If you avail financing through any partner institution (NBFC / co-lending partner), the loan agreement, repayment schedule, interest rates and all obligations are strictly between you and the lender. ' }, { t: 'Global Careers by Testbook bears absolutely no liability', b: true }, { t: ' for loan-related disputes, interest charges, penalties, credit-score impact, or any legal action by the lender. Read all loan documents carefully before signing.' }] })
+    notes.push({ head: 'Partner Loan — Disclaimer of Liability', segs: [{ t: 'If you avail financing through any partner institution (NBFC / co-lending partner), the loan agreement, repayment schedule, interest rates and all obligations are strictly between you and the lender. ' }, { t: 'Testbook Edu Solutions bears absolutely no liability', b: true }, { t: ' for loan-related disputes, interest charges, penalties, credit-score impact, or any legal action by the lender. Read all loan documents carefully before signing.' }] })
   }
   // Non-refundability applies to the amount actually paid on this receipt.
   notes.push({ head: 'Fee Non-Refundability', segs: [{ t: 'The amount paid on this receipt — ' }, { t: inr(paid), b: true }, { t: ' — is ' }, { t: 'strictly non-refundable', b: true }, { t: ' under any circumstances, including change of mind, inability to attend, personal emergencies, relocation, or medical conditions.' }] })
@@ -246,8 +278,8 @@ function buildReceiptPages(b: PDFBuilder, a: Record<string, unknown>) {
   })
 }
 
-async function buildPDF(a: Record<string, unknown>, type: string, lhBytes: Uint8Array): Promise<Uint8Array> {
-  const b = new PDFBuilder(); await b.init(lhBytes)
+async function buildPDF(a: Record<string, unknown>, type: string, logoBytes: Uint8Array | null): Promise<Uint8Array> {
+  const b = new PDFBuilder(); await b.init(logoBytes)
   if (type === 'receipt') buildReceiptPages(b, a)
   else buildLetterPages(b, a)
   return b.doc.save()
@@ -265,10 +297,13 @@ Deno.serve(async (req: Request) => {
     const GCB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const gcb = createClient(GCB_URL, GCB_KEY)
 
-    const { data: lhBlob, error: lhErr } = await gcb.storage.from(LETTERHEAD_BUCKET).download(LETTERHEAD_PATH)
-    if (lhErr || !lhBlob) throw new Error(`letterhead asset missing (upload ${LETTERHEAD_BUCKET}/${LETTERHEAD_PATH}): ${lhErr?.message ?? 'not found'}`)
-    const lhBytes = new Uint8Array(await lhBlob.arrayBuffer())
-    const pdfBytes = await buildPDF(a, type, lhBytes)
+    // Fetch the crisp testbook logo from storage (best-effort; vector fallback if absent)
+    let logoBytes: Uint8Array | null = null
+    try {
+      const { data: logoBlob } = await gcb.storage.from(LOGO_BUCKET).download(LOGO_PATH)
+      if (logoBlob) logoBytes = new Uint8Array(await logoBlob.arrayBuffer())
+    } catch (_e) { /* fall back to vector wordmark */ }
+    const pdfBytes = await buildPDF(a, type, logoBytes)
 
     const fileName = `${roll}_${type === 'receipt' ? 'payment_receipt' : 'admission_letter'}.pdf`
     const { error: upErr } = await gcb.storage.from('admission-letters')
@@ -315,7 +350,7 @@ Deno.serve(async (req: Request) => {
           to: [toEmail],
           subject,
           attachments: [{ filename: fileName, content: b64 }],
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222"><div style="background:#153b72;padding:24px 32px;border-radius:8px 8px 0 0"><h2 style="color:#fff;margin:0;font-size:20px">Global Careers by Testbook</h2><p style="color:#a8c4e8;margin:4px 0 0;font-size:13px">${docLabel}</p></div><div style="background:#f7f8fa;padding:28px 32px;border-radius:0 0 8px 8px;border:1px solid #e2e5ea;border-top:none"><p style="margin:0 0 12px">Dear <strong>${cname}</strong>,</p><p style="margin:0 0 16px">Your <strong>${docLabel}</strong> is attached to this email as a PDF. Please keep it for your records.</p><p style="margin:0 0 8px"><strong>Roll Number:</strong> ${roll}</p><p style="margin:0 0 24px">For any queries, reply to this email or write to <a href="mailto:support.gc@testbook.com">support.gc@testbook.com</a>.</p><p style="margin:0;color:#666;font-size:12px">— Student Success Team, Global Careers by Testbook</p></div></div>`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222"><div style="background:#153b72;padding:24px 32px;border-radius:8px 8px 0 0"><h2 style="color:#fff;margin:0;font-size:20px">Testbook Edu Solutions</h2><p style="color:#a8c4e8;margin:4px 0 0;font-size:13px">${docLabel}</p></div><div style="background:#f7f8fa;padding:28px 32px;border-radius:0 0 8px 8px;border:1px solid #e2e5ea;border-top:none"><p style="margin:0 0 12px">Dear <strong>${cname}</strong>,</p><p style="margin:0 0 16px">Your <strong>${docLabel}</strong> is attached to this email as a PDF. Please keep it for your records.</p><p style="margin:0 0 8px"><strong>Roll Number:</strong> ${roll}</p><p style="margin:0 0 24px">For any queries, reply to this email or write to <a href="mailto:support.gc@testbook.com">support.gc@testbook.com</a>.</p><p style="margin:0;color:#666;font-size:12px">— Student Success Team, Testbook Edu Solutions</p></div></div>`,
         }),
       })
       emailStatus = emailRes.ok ? 'sent' : `failed:${emailRes.status}`

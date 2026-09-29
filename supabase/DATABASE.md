@@ -57,8 +57,12 @@ create table if not exists public.auth_sessions (
 
 ## GC Buddy project (`uxdrldreaockdloqvojs`)
 
-- Private storage bucket **`assets`** holding `letterhead.jpg` (read by
-  `generate-document` at runtime).
+- Private storage bucket **`assets`** holding **`testbook-logo.png`** (the crisp
+  testbook wordmark), read by `generate-document` at runtime. The header/footer
+  are now drawn natively (crisp vector text + this logo) instead of embedding a
+  low-resolution full-page letterhead scan; if the logo is missing the function
+  falls back to a vector "testbook" wordmark so generation never fails.
+  (The old `letterhead.jpg` is no longer used.)
 - Generated PDFs are written to the existing **`admission-letters`** bucket.
 
 ## ✅ Post-merge cleanup — APPLIED (migration `plaintext_password_cleanup`)
