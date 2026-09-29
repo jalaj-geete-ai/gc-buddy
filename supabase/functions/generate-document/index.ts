@@ -99,7 +99,11 @@ class PDFBuilder {
   async init(logoBytes: Uint8Array | null) {
     this.doc = await PDFDocument.create()
     this.fonts = { reg: await this.doc.embedFont(StandardFonts.Helvetica), bold: await this.doc.embedFont(StandardFonts.HelveticaBold) }
-    if (logoBytes) { try { this.logo = await this.doc.embedPng(logoBytes) } catch { this.logo = null } }
+    if (logoBytes) {
+      // Accept either a PNG or a JPEG logo
+      try { this.logo = await this.doc.embedPng(logoBytes) }
+      catch { try { this.logo = await this.doc.embedJpg(logoBytes) } catch { this.logo = null } }
+    }
   }
   // Crisp, vector letterhead drawn on every page (no scanned image).
   drawHeader() {
@@ -297,12 +301,28 @@ Deno.serve(async (req: Request) => {
     const GCB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const gcb = createClient(GCB_URL, GCB_KEY)
 
-    // Fetch the crisp testbook logo from storage (best-effort; vector fallback if absent)
-    let logoBytes: Uint8Array | null = null
-    try {
-      const { data: logoBlob } = await gcb.storage.from(LOGO_BUCKET).download(LOGO_PATH)
-      if (logoBlob) logoBytes = new Uint8Array(await logoBlob.arrayBuffer())
-    } catch (_e) { /* fall back to vector wordmark */ }
+    // Fetch the crisp testbook logo from storage (best-effort; vector fallback if absent).
+    // Prefers assets/testbook-logo.png, but self-heals: if that exact name is not
+    // present, it auto-picks any other image in the `assets` bucket that is not the
+    // letterhead (so an uploaded logo with any filename / PNG or JPEG is used).
+    const dl = async (name: string): Promise<Uint8Array | null> => {
+      try {
+        const { data } = await gcb.storage.from(LOGO_BUCKET).download(name)
+        if (data) return new Uint8Array(await data.arrayBuffer())
+      } catch (_e) { /* ignore */ }
+      return null
+    }
+    let logoBytes: Uint8Array | null = await dl(LOGO_PATH)
+    if (!logoBytes) {
+      try {
+        const { data: list } = await gcb.storage.from(LOGO_BUCKET).list('', { limit: 100 })
+        const imgs = (list ?? [])
+          .filter((o: { name: string }) => /\.(png|jpe?g)$/i.test(o.name) && !/letterhead/i.test(o.name))
+          .sort((a: { name: string }, b: { name: string }) =>
+            (/(logo|testbook)/i.test(b.name) ? 1 : 0) - (/(logo|testbook)/i.test(a.name) ? 1 : 0))
+        if (imgs[0]) logoBytes = await dl(imgs[0].name)
+      } catch (_e) { /* fall back to vector wordmark */ }
+    }
     const pdfBytes = await buildPDF(a, type, logoBytes)
 
     const fileName = `${roll}_${type === 'receipt' ? 'payment_receipt' : 'admission_letter'}.pdf`
