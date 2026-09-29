@@ -109,8 +109,13 @@ class PDFBuilder {
   drawHeader() {
     const p = this.page, rx = A4W - RM
     if (this.logo) {
-      const logoW = 118, logoH = logoW * this.logo.height / this.logo.width
-      p.drawImage(this.logo, { x: LM, y: 805 - logoH, width: logoW, height: logoH })
+      // Fit the logo inside a fixed box (aspect-preserved) so any shape — a wide
+      // wordmark or a square/stacked lockup — sits cleanly in the header without
+      // overlapping the title below.
+      const maxW = 120, maxH = 36
+      const sc = Math.min(maxW / this.logo.width, maxH / this.logo.height)
+      const lw = this.logo.width * sc, lh = this.logo.height * sc
+      p.drawImage(this.logo, { x: LM, y: 806 - lh, width: lw, height: lh })
     } else {
       // Vector fallback wordmark (used only until testbook-logo.png is uploaded)
       p.drawText('testbook', { x: LM, y: 783, size: 22, font: this.fonts.bold, color: BRAND })
