@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
 
       const docRes = await fetch(DOC_FN_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GCB_KEY}` },
         body: JSON.stringify({ admission, type: 'letter' }),
       })
       letterResult = await docRes.json()

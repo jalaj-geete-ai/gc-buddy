@@ -287,9 +287,95 @@ function buildReceiptPages(b: PDFBuilder, a: Record<string, unknown>) {
   })
 }
 
-async function buildPDF(a: Record<string, unknown>, type: string, logoBytes: Uint8Array | null): Promise<Uint8Array> {
+// An additional payment receipt for ONE specific payment (installment, loan
+// disbursement, top-up, etc.), created on demand and approved in the Audit Portal.
+function buildPaymentReceiptPages(
+  b: PDFBuilder, a: Record<string, unknown>,
+  pr: Record<string, unknown>, totals: Record<string, unknown>,
+) {
+  const cname = S(a.candidate_name), roll = S(a.roll_number)
+  const receiptNo = S(pr.receipt_no) || roll
+  const amount = Number(pr.amount ?? 0)
+  const mode = S(pr.payment_mode) || 'other'
+  const financing = S(a.financing_type) || 'testbook_emi'
+  const pfee = Number(totals.program_fee ?? a.program_fee ?? 0)
+  const paidToDate = Number(totals.total_paid ?? 0)
+  const balance = Number(totals.balance ?? (pfee - paidToDate))
+  const payDate = pr.payment_date ? fdate(pr.payment_date as string) : fdate(new Date().toISOString())
+  const modeLabel: Record<string, string> = {
+    down_payment: 'Registration / Down Payment', emi_installment: 'Monthly EMI Instalment',
+    loan_disbursement: 'Partner Loan Disbursement', topup: 'Additional Payment', other: 'Payment',
+  }
+  const towards = modeLabel[mode] ?? 'Payment'
+
+  b.newPage()
+  b.page.drawText('Payment Receipt', { x: LM, y: b.y, size: 17, font: b.fonts.bold, color: BLACK })
+  const r1 = `Receipt No: ${receiptNo}`, r2 = `Date: ${payDate}`
+  b.page.drawText(r1, { x: A4W - RM - b.fonts.reg.widthOfTextAtSize(r1, 9), y: b.y + 4, size: 9, font: b.fonts.reg, color: MUTED })
+  b.page.drawText(r2, { x: A4W - RM - b.fonts.reg.widthOfTextAtSize(r2, 9), y: b.y - 8, size: 9, font: b.fonts.reg, color: MUTED })
+  b.y -= 16
+  b.page.drawLine({ start: { x: LM, y: b.y }, end: { x: A4W - RM, y: b.y }, thickness: 1, color: BLUE }); b.y -= 20
+  b.page.drawText('Received From', { x: LM, y: b.y, size: 8, font: b.fonts.bold, color: MUTED }); b.y -= 13
+  b.page.drawText(cname, { x: LM, y: b.y, size: 11, font: b.fonts.bold, color: BLACK }); b.y -= 14
+  b.page.drawText(`${S(a.current_city)}  ·  ${S(a.candidate_phone)}`, { x: LM, y: b.y, size: 9.5, font: b.fonts.reg, color: BLACK }); b.y -= 13
+  b.page.drawText(`Roll Number: ${roll}`, { x: LM, y: b.y, size: 9.5, font: b.fonts.bold, color: NAVY }); b.y -= 18
+
+  const ack: Record<string, Seg[]> = {
+    down_payment: [{ t: 'as your registration / down payment towards the ' }],
+    emi_installment: [{ t: 'towards your monthly EMI instalment for the ' }],
+    loan_disbursement: [{ t: 'disbursed through your partner-loan financing towards the ' }],
+    topup: [{ t: 'as an additional payment towards the ' }],
+    other: [{ t: 'towards the ' }],
+  }
+  const thankSegs: Seg[] = [
+    { t: 'Thank you. We gratefully acknowledge receipt of ' }, { t: inr(amount), b: true }, { t: ' ' },
+    ...(ack[mode] ?? ack.other),
+    { t: 'German Language Programme (A1-B2)', b: true }, { t: ' at Testbook Edu Solutions.' },
+  ]
+  const thankLines = mixedWrap(thankSegs, b.fonts, 9.5, CW - 16)
+  const thankH = thankLines.length * 13 + 12
+  b.page.drawRectangle({ x: LM, y: b.y - thankH, width: CW, height: thankH, color: LGRAY })
+  let thankY = b.y - 13
+  for (const line of thankLines) { drawSegLine(b.page, line, LM + 8, thankY, 9.5, b.fonts, NAVY); thankY -= 13 }
+  b.y -= thankH + 16
+
+  b.sectionHead('Payment Details'); b.y -= 2
+  const rows: [string, string, boolean?][] = [
+    ['Candidate Name', cname], ['Roll Number', roll],
+    ['Payment Date', payDate], ['Payment Towards', towards],
+    ['Amount Received', inr(amount), true],
+    ['Total Programme Fee', inr(pfee)],
+    ['Total Paid to Date', inr(paidToDate), true],
+    ['Balance Remaining', inr(balance), true],
+  ]
+  drawTable(b, rows, CW * 0.42, CW * 0.58)
+  b.y -= 18
+
+  b.page.drawText('Important Payment Notes', { x: LM, y: b.y, size: 11, font: b.fonts.bold, color: NAVY }); b.y -= 8
+  b.page.drawLine({ start: { x: LM, y: b.y }, end: { x: A4W - RM, y: b.y }, thickness: 0.5, color: LGRAY }); b.y -= 13
+  const notes: Array<{ head: string; segs: Seg[] }> = []
+  if (pr.note) notes.push({ head: 'Note', segs: [{ t: S(pr.note) }] })
+  if (financing === 'partner_loan') {
+    notes.push({ head: 'Partner Loan Financing', segs: [{ t: 'The balance of your programme fee is financed through a partner lending institution (NBFC / co-lending partner). The loan agreement, repayment schedule, interest rates and all obligations are strictly between you and the lender. ' }, { t: 'Testbook Edu Solutions bears no liability', b: true }, { t: ' for loan-related disputes, interest, penalties or credit-score impact.' }] })
+  } else if (mode === 'emi_installment') {
+    notes.push({ head: 'EMI Continuity', segs: [{ t: 'This receipt confirms one monthly instalment. Please continue to maintain sufficient balance in your registered account for the remaining instalments. A failed deduction may suspend platform access until the overdue amount is cleared.' }] })
+  }
+  notes.push({ head: 'Fee Non-Refundability', segs: [{ t: 'The amount received on this receipt — ' }, { t: inr(amount), b: true }, { t: ' — is ' }, { t: 'strictly non-refundable', b: true }, { t: ' under any circumstances.' }] })
+  notes.push({ head: 'Queries', segs: [{ t: 'For any discrepancy, contact your Success Manager Mr. Amit at ' + SUPPORT_PHONE + ' or write to ' }, { t: EMAIL, b: true }, { t: ' quoting Receipt No. ' }, { t: receiptNo, b: true }, { t: '.' }] })
+  notes.forEach((note, i) => {
+    const head = `${i + 1}. ${note.head}`
+    const bodyH = blockH(note.segs, b.fonts, 9, CW, 13)
+    b.checkBreak(14 + bodyH + 9)
+    b.page.drawText(head, { x: LM, y: b.y, size: 9.5, font: b.fonts.bold, color: NAVY }); b.y -= 14
+    for (const line of mixedWrap(note.segs, b.fonts, 9, CW)) { drawSegLine(b.page, line, LM, b.y, 9, b.fonts, BLACK); b.y -= 13 }
+    b.y -= 9
+  })
+}
+
+async function buildPDF(a: Record<string, unknown>, type: string, logoBytes: Uint8Array | null, pr?: Record<string, unknown>, totals?: Record<string, unknown>): Promise<Uint8Array> {
   const b = new PDFBuilder(); await b.init(logoBytes)
-  if (type === 'receipt') buildReceiptPages(b, a)
+  if (type === 'payment') buildPaymentReceiptPages(b, a, pr ?? {}, totals ?? {})
+  else if (type === 'receipt') buildReceiptPages(b, a)
   else buildLetterPages(b, a)
   return b.doc.save()
 }
@@ -299,7 +385,9 @@ Deno.serve(async (req: Request) => {
   try {
     const payload = await req.json()
     const a = payload.admission ?? payload.record ?? payload
-    const type = payload.type === 'receipt' ? 'receipt' : 'letter'
+    const type = (payload.type === 'receipt' || payload.type === 'payment') ? payload.type : 'letter'
+    const pr = payload.payment_receipt ?? {}
+    const totals = payload.totals ?? {}
     const roll = String(a.roll_number ?? 'unknown')
 
     const GCB_URL = Deno.env.get('SUPABASE_URL')!
@@ -328,9 +416,12 @@ Deno.serve(async (req: Request) => {
         if (imgs[0]) logoBytes = await dl(imgs[0].name)
       } catch (_e) { /* fall back to vector wordmark */ }
     }
-    const pdfBytes = await buildPDF(a, type, logoBytes)
+    const pdfBytes = await buildPDF(a, type, logoBytes, pr, totals)
 
-    const fileName = `${roll}_${type === 'receipt' ? 'payment_receipt' : 'admission_letter'}.pdf`
+    const safe = (s: unknown) => String(s ?? '').replace(/[^A-Za-z0-9_-]/g, '')
+    const fileName = type === 'payment'
+      ? `${roll}_receipt_${safe(pr.receipt_no) || 'extra'}.pdf`
+      : `${roll}_${type === 'receipt' ? 'payment_receipt' : 'admission_letter'}.pdf`
     const { error: upErr } = await gcb.storage.from('admission-letters')
       .upload(fileName, pdfBytes, { contentType: 'application/pdf', upsert: true })
     if (upErr) throw upErr
@@ -343,7 +434,9 @@ Deno.serve(async (req: Request) => {
     const CRM_URL = 'https://lrcimdchhbsgbnvdmpwd.supabase.co'
     const CRM_KEY = Deno.env.get('CRM_SERVICE_ROLE_KEY') ?? ''
     const admId = a.id
-    if (CRM_KEY && admId != null && docUrl) {
+    // For an additional payment receipt the writeback targets payment_receipts and
+    // is handled by audit-action; here we only update the admissions row.
+    if (type !== 'payment' && CRM_KEY && admId != null && docUrl) {
       const patch = type === 'receipt'
         ? { receipt_url: docUrl, receipt_generated_at: new Date().toISOString(), ...(a.receipt_no ? { receipt_no: a.receipt_no } : {}) }
         : { letter_url: docUrl, letter_generated_at: new Date().toISOString() }
@@ -364,7 +457,7 @@ Deno.serve(async (req: Request) => {
       for (let i = 0; i < pdfBytes.length; i++) b64 += String.fromCharCode(pdfBytes[i])
       b64 = btoa(b64)
       const cname = String(a.candidate_name ?? '')
-      const isReceipt = type === 'receipt'
+      const isReceipt = type === 'receipt' || type === 'payment'
       const subject = isReceipt ? `Your Payment Receipt — Roll No. ${roll}` : `Your Programme Admission Letter — Roll No. ${roll}`
       const docLabel = isReceipt ? 'Payment Receipt' : 'Programme Admission Letter'
       const emailRes = await fetch('https://api.resend.com/emails', {

@@ -55,6 +55,44 @@ create table if not exists public.auth_sessions (
 -- (see hashed_login_bcrypt migration; verify_login lazily migrates plaintext-only rows)
 ```
 
+### admissions + payment_receipts — additional (multi) payment receipts
+```sql
+-- financing type on the admission (drives receipt wording)
+alter table public.admissions add column if not exists financing_type text
+  not null default 'testbook_emi'
+  check (financing_type in ('testbook_emi','partner_loan','full'));
+update public.admissions set financing_type='full' where full_payment is true and financing_type='testbook_emi';
+
+-- ledger of ADDITIONAL payment receipts (the enrolment receipt stays on admissions)
+create table public.payment_receipts (
+  id uuid primary key default gen_random_uuid(),
+  admission_id bigint not null references public.admissions(id) on delete cascade,
+  roll_number text, seq int not null default 1, receipt_no text,
+  amount integer not null, payment_date date not null default current_date,
+  payment_mode text not null default 'other'
+    check (payment_mode in ('down_payment','emi_installment','loan_disbursement','topup','other')),
+  note text,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  reviewed_by text, reviewed_at timestamptz, reject_reason text,
+  receipt_url text, generated_at timestamptz, created_by text,
+  created_at timestamptz not null default now()
+);
+-- RLS: read open to anon/authenticated; requests via RPC, approvals via edge fn (service role)
+alter table public.payment_receipts enable row level security;
+create policy anon_read_payment_receipts on public.payment_receipts for select to anon using (true);
+create policy auth_read_payment_receipts on public.payment_receipts for select to authenticated using (true);
+
+-- per-student receipt number (roll + running count incl. the enrolment receipt)
+create function public.next_receipt_no(p_admission_id bigint) returns text ...;
+-- create a pending request from the CRM (anon-callable, security definer)
+create function public.request_payment_receipt(p_admission_id bigint, p_amount integer,
+  p_payment_date date, p_payment_mode text, p_note text, p_created_by text) returns uuid ...;
+```
+Flow: CRM operator calls `request_payment_receipt` (pending) → Audit Portal → `audit-action`
+with `{receipt_id, action}` (service-role, validates the `audit` session) → assigns `receipt_no`,
+generates a financing-aware `type:'payment'` PDF via generate-document, writes back `receipt_url`.
+`generate-document` is invoked function-to-function WITH the service-role JWT (verify_jwt is on).
+
 ## GC Buddy project (`uxdrldreaockdloqvojs`)
 
 - Private storage bucket **`assets`** holding **`testbook-logo.png`** (the crisp
